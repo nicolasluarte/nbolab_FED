@@ -199,3 +199,20 @@ void weird () {
     display.refresh();
   }
 }
+
+/********************************************************
+  Display SD Card success
+********************************************************/
+void DisplaySDSuccess() {
+  display.clearDisplay();
+  display.setRotation(3);
+  display.setTextColor(BLACK);
+
+  display.setCursor(20, 40);
+  display.setTextSize(2);
+  display.println(" SD Card");
+  display.setCursor(10, 80);
+  display.println("OK!");
+
+  display.refresh();
+}

@@ -61,12 +61,12 @@ bool headerFlag = true;
 void setup() {
   StartUpCommands();
   if (SD.begin(4)) {
-    Serial.println("Initialised SD card.");
+    DisplaySDSuccess();
+    delay(1000);
   } else {
-    Serial.println("Failed to initialise SD card.");
+    DisplaySDError();
+    delay(1000);
   }
-//  strcpy(filename, "FED_____________.CSV"); 
-//  getFilename(filename);
 
   sprintf(filename, "%02d%02d%02d%02d%02d%02dFED%02d.csv", rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHours(), rtc.getMinutes(), rtc.getSeconds(), FED);
 
