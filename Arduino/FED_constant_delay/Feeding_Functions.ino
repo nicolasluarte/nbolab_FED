@@ -12,16 +12,22 @@ void Feed()  {
         OutReady = false;
       }
       CountReady = true;
-      for (int i = 0; i < 51 + random(0, 10); i++) {
-        if (digitalRead (PELLET_WELL) == HIGH) {
-          myMotor->step(1, BACKWARD, DOUBLE);
-        }
-      }
+//      for (int i = 0; i < 51 + random(0, 10); i++) {
+//        if (digitalRead (PELLET_WELL) == HIGH) {
+//          myMotor->step(1, BACKWARD, DOUBLE);
+//        }
+     for (int i = 0; i < 20 + random(0, 10); i++){
+		  if (digitalRead (PELLET_WELL) == HIGH) {
+			myMotor->step(7, BACKWARD, DOUBLE);
+			myMotor->step(14, FORWARD, DOUBLE);
+			delay(50);
+		}
+	}
       myMotor->release();
     }
   }
   numMotorTurns++;
-  delay (1000);
+  delay (500);
   //Move pellet disk backwards a variable amount between 20 and 40
   if (digitalRead (PELLET_WELL) == HIGH) {
     for (int i = 0; i < 10 + random(0, 10); i++) {
@@ -30,7 +36,7 @@ void Feed()  {
       }
     }
     myMotor->release();
-    delay(1000);
+    delay(500);
   }
   if (numMotorTurns > TurnsBeforeJammed) {
     PelletJam = true;
@@ -69,4 +75,3 @@ void ClearJam() {
     }
   }
 }
-

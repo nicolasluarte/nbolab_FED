@@ -16,14 +16,13 @@ void Feed()  {
 //        if (digitalRead (PELLET_WELL) == HIGH) {
 //          myMotor->step(1, BACKWARD, DOUBLE);
 //        }
-      	for (int i = 0; i < 20 + random(0, 10); i++){
-		if(digitalRead(PELLET_WELL) === HIGH) {
+     for (int i = 0; i < 20 + random(0, 10); i++){
+		  if (digitalRead (PELLET_WELL) == HIGH) {
 			myMotor->step(7, BACKWARD, DOUBLE);
 			myMotor->step(14, FORWARD, DOUBLE);
 			delay(50);
 		}
 	}
-      }
       myMotor->release();
     }
   }
@@ -76,4 +75,3 @@ void ClearJam() {
     }
   }
 }
-

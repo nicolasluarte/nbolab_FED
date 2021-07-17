@@ -1,6 +1,6 @@
 void Timeout () {
   // create array with possible delays, if you want a probability distributions copy the number
-  int DELAYS[] = {15, 15};
+  int DELAYS[] = {15, 30, 45, 60, 75, 90, 105, 120};
   
   if (TimeoutReady == true) {
     int index = random(sizeof(DELAYS) / sizeof(DELAYS[0]));
