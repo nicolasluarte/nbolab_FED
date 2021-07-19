@@ -88,7 +88,7 @@ void setup() {
 void loop() {
   // if (logfile.open(filename, O_CREAT | O_WRITE | O_APPEND)) {
   if (logfile) {
-    if (headerFlag == true){
+    if (headerFlag == true  ){
             logfile.println("MM:DD:YYYY hh:mm:ss, Mouse, PelletCount, MotorTurns, BatteryVoltage, Delay");
             headerFlag = false;
     }
