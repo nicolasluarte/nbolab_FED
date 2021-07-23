@@ -81,6 +81,7 @@ Adafruit_MotorShield AFMS = Adafruit_MotorShield();
 // to motor port #2 (M3 and M4)
 Adafruit_StepperMotor *myMotor = AFMS.getStepper(513 , 2);
 
+
 /********************************************************
   Setup date and time variables
 ********************************************************/
