@@ -5,7 +5,7 @@ void CheckForPellet () {
   ReadBatteryLevel();
   PelletAvailable = false;
   if (digitalRead(PELLET_WELL) == LOW ) {
-    delay (1000);
+    delay (500);
     if (digitalRead(PELLET_WELL) == LOW ) {
       PelletAvailable = true;
       PelletJam = false;
