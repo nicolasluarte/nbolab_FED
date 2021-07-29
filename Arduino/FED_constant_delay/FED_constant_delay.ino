@@ -79,7 +79,6 @@ void setup() {
   String EXT = ".csv";
   FILENAME = DATE + MICE + EXT;
   logfile = SD.open(FILENAME, FILE_WRITE);
-  myMotor->setSpeed(99999);
   
 }
 

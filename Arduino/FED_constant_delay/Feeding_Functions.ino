@@ -8,7 +8,6 @@ void Feed()  {
     delay (500); //simple debounce
     if (digitalRead (PELLET_WELL) == HIGH) {
       if (OutReady == true) {
-        Blink(BNC_OUT, 200, 1);
         OutReady = false;
       }
       CountReady = true;
@@ -18,9 +17,9 @@ void Feed()  {
 //        }
      for (int i = 0; i < 20 + random(0, 10); i++){
 		  if (digitalRead (PELLET_WELL) == HIGH) {
-			myMotor->step(14, FORWARD, DOUBLE);
-			myMotor->step(28, BACKWARD, DOUBLE);
-     delay(15);
+			myMotor->step(25, FORWARD, DOUBLE);
+			myMotor->step(50, BACKWARD, DOUBLE);
+     delay(50);
 		}
 	}
       myMotor->release();

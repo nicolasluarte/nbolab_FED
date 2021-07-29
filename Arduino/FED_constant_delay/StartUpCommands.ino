@@ -76,7 +76,7 @@ void StartUpCommands () {
   /********************************************************
     Set up stepper
   ********************************************************/
-  AFMS.begin();  // create with the default frequency 1.6KHz
+  AFMS.begin(1000);  // create with the default frequency 1.6KHz
   myMotor->setSpeed(100);
 
 }

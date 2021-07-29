@@ -1,10 +1,11 @@
 void Timeout () {
   // create array with possible delays, if you want a probability distributions copy the number
-  int DELAYS[] = {15};
+  // int DELAYS[] = {15};
+  delayPick = timeout;
   
   if (TimeoutReady == true) {
-    int index = random(sizeof(DELAYS) / sizeof(DELAYS[0]));
-    delayPick = DELAYS[index];
+    //int index = random(sizeof(DELAYS) / sizeof(DELAYS[0]));
+    //delayPick = DELAYS[index];
     for (int k = 0; k < delayPick; k++) {
       delay (1000);
       display.clearDisplay();

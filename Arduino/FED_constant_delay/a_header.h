@@ -45,9 +45,8 @@ bool logReady = false;
 float measuredvbat = 1.00;
 float batteryalarm = 3.55;
 bool OutReady = true;
-int timeout = 15; //timeout between pellets in seconds
+int timeout = 1; //timeout between pellets in seconds
 int delayPick;
-
 /********************************************************
   Setup Sharp Memory Display
 ********************************************************/
