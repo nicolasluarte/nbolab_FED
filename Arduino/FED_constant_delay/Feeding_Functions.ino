@@ -18,9 +18,9 @@ void Feed()  {
 //        }
      for (int i = 0; i < 20 + random(0, 10); i++){
 		  if (digitalRead (PELLET_WELL) == HIGH) {
-			myMotor->step(14, BACKWARD, DOUBLE);
-			myMotor->step(28, FORWARD, DOUBLE);
-     delay(0);
+			myMotor->step(14, FORWARD, DOUBLE);
+			myMotor->step(28, BACKWARD, DOUBLE);
+     delay(15);
 		}
 	}
       myMotor->release();
