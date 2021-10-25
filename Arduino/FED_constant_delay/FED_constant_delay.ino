@@ -1,5 +1,5 @@
  // Change FED value to change the mouse number at the beginning of the filename.  This must remain an integer, no strings!
-int FED = 1;
+int FED = 9;
 
 
 /********************************************************
@@ -75,8 +75,8 @@ void setup() {
   String HOUR = String(rtc.getHours());
   String MICE = String(FED);
   String MIN = String(rtc.getMinutes());
-  String DATE = MONTH + DAY + HOUR + MIN;
-  String EXT = ".csv";
+  String DATE = MONTH + DAY;
+  String EXT = ".CSV";
   FILENAME = DATE + MICE + EXT;
   logfile = SD.open(FILENAME, FILE_WRITE);
   
@@ -93,7 +93,6 @@ void loop() {
             logfile.println("MM:DD:YYYY hh:mm:ss, Mouse, PelletCount, MotorTurns, BatteryVoltage, Delay");
             headerFlag = false;
     }
-    
     CheckForPellet ();
 
 

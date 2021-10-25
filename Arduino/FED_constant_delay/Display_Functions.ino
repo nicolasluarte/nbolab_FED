@@ -132,8 +132,7 @@ void DisplayDispense() {
 }
 
 /********************************************************
-  Startup Animation
-********************************************************/
+e********************************************************/
 void StartUpDisplay () {
   display.setFont(&FreeSans9pt7b);
   display.setRotation(3);
