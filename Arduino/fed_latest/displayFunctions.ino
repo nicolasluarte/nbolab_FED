@@ -8,13 +8,14 @@ void displayExperimentInfo() {
   char experimentalInfo[80];
   unsigned long epoch = rtc.getEpoch();
   sprintf(experimentalInfo,
-  "Animal: %02d\n\Cond: %s\n\Pause: %s\nTime: %02d:%02d:%02d",
+  "Animal: %02d\n\Cond: %s\n\Pause: %s\nTime: %02d:%02d:%02d\nPellets: %02d",
   config.animal,
   config.protocol,
-  (pauseDelivery ? "TRUE" : "FALSE"),
+  (blockDelivery ? "TRUE" : "FALSE"),
   hour(epoch),
   minute(epoch),
-  second(epoch));
+  second(epoch),
+  pelletCount);
   display.println(experimentalInfo);
 
   display.refresh();
@@ -62,8 +63,8 @@ void displayDelay(int count) {
   display.setRotation(3);
   display.setTextColor(BLACK);
 
-  display.setCursor(25, 10);
-  display.setTextSize(3);
+  display.setCursor(40, 50);
+  display.setTextSize(4);
   char msg[30];
   sprintf(msg,"Delay: %02d", count);
   display.println(msg);

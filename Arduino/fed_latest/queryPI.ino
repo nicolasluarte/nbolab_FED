@@ -13,7 +13,7 @@ void queryPI(){
   }
   else{
     pellet = false;
-    // resest the bool so when pellet si delivered
+    // reset the bool so when pellet is delivered
     // data is written again
     dataLog = false;
   }

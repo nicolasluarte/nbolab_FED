@@ -1,6 +1,5 @@
 void checkForPellet() {
   queryPI();
-  Serial.println(pellet ? "PELLET" : "NO PELLET");
   if (pellet) {
     delay(500);
     delayLogic = true;
@@ -8,8 +7,8 @@ void checkForPellet() {
   else {
     if (delayLogic == true) {
       getFeedingDelay();
-      for (int i = 0; i < feedingDelay; i++) {
-        displayDelay(feedingDelay - i);
+      for (int i = 0; i < fedDelay; i++) {
+        displayDelay(fedDelay - i);
         delayLogic = false;
         delay(1000);
       }

@@ -70,3 +70,8 @@ int fedDelay = 1;
 int feedingDelay;
 bool delayLogic;
 bool blockDisplay = false;
+int blockSize;
+int blockMatch[24];
+bool blockDelivery;
+int delaySize;
+int arraySum = 0;
