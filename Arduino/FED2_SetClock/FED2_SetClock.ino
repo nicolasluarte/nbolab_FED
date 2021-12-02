@@ -1,4 +1,4 @@
-/********************************************************
+`/********************************************************
   Clock setting function for Adafruit M0 feather board in the FED2.0.  This will set the RTC to the current computer
   date/time and the device will maintain that time as long as a battery is connected.  If power is disconnected the
   time will revert to January 1, 2000.  Flash this code again to reset it.
