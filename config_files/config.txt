@@ -1,0 +1,8 @@
+{
+	"protocol": "baseline",
+	"animal": 000,
+	"longDelay": 15,
+	"longDelayCount": 6,
+	"deliveryDelay": [15],
+	"lastLongDelay": 0
+}
