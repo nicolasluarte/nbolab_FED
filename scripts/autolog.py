@@ -1,6 +1,7 @@
 import re
 import json
 import os
+from datetime import datetime
 
 
 # mount micro sd card
@@ -34,8 +35,17 @@ if mountPrompt == 'y':
     # copy animal data .CSV into the folder
     copyCSV = 'sudo cp ~/usb-drive/' + animalNumber + '.CSV' + ' ../raw_data/' + animalNumber + '/'
     os.system(copyCSV)
+    # git add file
+    gitAdd = 'git add ../raw_data/' + animalNumber + '/'
+    os.system(gitAdd)
+    # create commit
+    now = datetime.now()
+    now = now.strftime("%m/%d/%Y, %H:%M:%S")
+    createCommit = 'git commit -m "' + now + ' ' + animalNumber + '"'
+    os.system(createCommit)
     # unmount micro sd
     unmountSd = 'sudo umount /dev/sdb1'
+    os.system(unmountSd)
 else:
     print(":c")
     exit(0)
