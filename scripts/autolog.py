@@ -49,5 +49,3 @@ if mountPrompt == 'y':
 else:
     print(":c")
     exit(0)
-
-
