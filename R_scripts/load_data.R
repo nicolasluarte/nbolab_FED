@@ -1,5 +1,5 @@
 # Script
-pacman::p_load(tidyverse, cowplot, lme4, lmerTest)
+pacman::p_load(tidyverse, cowplot, lme4, lmerTest, ggrepel)
 
 # load files
 csv_list <- list.files(path = "../raw_data",
@@ -25,20 +25,24 @@ data_raw %>%
 	filter(date >= "2022-03-21") -> df
 
 # count pellets per day
+manual_data <- tibble(animal = 322, date = "2022-03-22", pellets_consumed = 12)
 df %>%
 	group_by(animal, date) %>%
 	summarise(pellets_consumed = max(pellets)) %>%
 	ungroup() -> pellets_consumed
+pellets_consumed <- rbind(pellets_consumed, manual_data) %>%
+	mutate(pellets_consumed = replace(pellets_consumed, animal == 322 & pellets_consumed == 2, 43))
 # plot pellets per day
 pellets_consumed %>%
 	ggplot(aes(date, pellets_consumed, group = animal, color = animal)) +
 	geom_point() +
 	geom_line() +
-	geom_label(aes(label = animal), data = pellets_consumed %>% group_by(animal) %>% slice(which.max(date))) +
+	geom_label_repel(aes(label = animal), data = pellets_consumed %>% group_by(animal) %>% slice(which.max(date))) +
 	theme_minimal(base_size = 14) +
 	xlab("Date") +
 	ylab("Pellet Intake") +
 	theme(legend.position = "none")
+ggsave("licks_per_mice.png")
 
 # plot pellets per hour
 rect <- data.frame(xmin=hms::as_hms("12:00:00"), xmax=hms::as_hms("23:59:99"), ymin=-Inf, ymax=Inf)
@@ -98,6 +102,7 @@ plot_grid(
   axis = "b"
 ) -> raster_plot
 raster_plot
+ggsave("raster_plot.png")
 
 # pellets day/night
 df %>%
@@ -138,7 +143,7 @@ pellets_consumed_circadian %>%
 # statistics
 df %>%
 	mutate(
-	       day_night = as.factor(if_else(isolated_hour >= 11 & isolated_hour <= 23,
+	       day_night = as.factor(if_else(isolated_hour >= 12 & isolated_hour <= 23,
 				   "Dark", "Light"))
 	) %>%
 	group_by(animal, day_night) %>%
