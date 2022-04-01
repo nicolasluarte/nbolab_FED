@@ -5,19 +5,34 @@ df <- readRDS("df.rds")
 
 # count pellets per day
 df %>%
-	filter(date < "2022-03-28") %>%
-	group_by(animal, date) %>%
+	filter(date >= "2022-03-28" & date <= "2022-03-31") %>%
+	mutate(protocol = replace_na(protocol, "experimental")) %>%
+	group_by(animal, date, protocol) %>%
 	summarise(pellets_consumed = n()) %>%
 	ungroup() -> pellets_consumed
 
+#pellets_consumed %>%
+#	filter(date > "2022-03-23", date < "2022-03-28") %>%
+#	group_by(animal) %>%
+#	summarise(mean_p = mean(pellets_consumed)) %>% arrange(desc(mean_p)) %>%
+#	mutate(group = as.factor(c(1, 2, 1, 2, 1, 2, 1, 2))) -> group_ll
+#a <- group_ll %>% filter(group == 1) %>% select(mean_p)
+#b <- group_ll %>% filter(group == 2) %>% select(mean_p)
+#t.test(a,b)
+
+# simple plot
 pellets_consumed %>%
-	filter(date > "2022-03-23", date < "2022-03-28") %>%
-	group_by(animal) %>%
-	summarise(mean_p = mean(pellets_consumed)) %>% arrange(desc(mean_p)) %>%
-	mutate(group = as.factor(c(1, 2, 1, 2, 1, 2, 1, 2))) -> group_ll
-a <- group_ll %>% filter(group == 1) %>% select(mean_p)
-b <- group_ll %>% filter(group == 2) %>% select(mean_p)
-t.test(a,b)
+	filter(pellets_consumed > 10) %>%
+	ggplot(aes(date, pellets_consumed, group = animal, color = animal, fill = protocol)) +
+	geom_point() +
+	geom_line() +
+	geom_label_repel(aes(label = animal), data = pellets_consumed %>% group_by(animal) %>% slice(which.max(date))) +
+	geom_vline(xintercept = lubridate::ymd("2022-03-29")) +
+	theme_minimal(base_size = 14) +
+	xlab("Date") +
+	ylab("Pellet Intake")
+
+ggsave("licks_per_mice.png")
 
 
 # grand mean

@@ -21,6 +21,7 @@ data_raw %>%
 	       isolated_hour = lubridate::hour(complete_date),
 	       animal = as.factor(animal),
 	       pellets = as.numeric(pellets),
+	       protocol = as.factor(protocol)
 	       ) %>%
 	filter(date >= "2022-03-21") -> df
 
