@@ -1,6 +1,6 @@
 void getFeedingDelay(){
   if (shuffle){
-    shuffleArray(dayHours, 24);
+    shuffleArray(dayHours, 21);
     shuffle = false;
     lastShuffle = rtc.getEpoch();
     // select the first 6 from shuffled array
