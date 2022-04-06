@@ -30,5 +30,8 @@ difference(){
     opening();
     }
 uplift();
-base();
 stop();
+ 
+color("blue")
+translate([-42, -52.471, 32])   
+cube([12, 1.4, 11]);
