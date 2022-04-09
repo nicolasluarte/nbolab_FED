@@ -3,13 +3,54 @@ pacman::p_load(tidyverse, cowplot, lme4, lmerTest, ggrepel)
 
 df <- readRDS("df.rds")
 
+# put labels
+df %>%
+	mutate(
+	       protocol = if_else(date <= "2022-03-28", "baseline",
+	       if_else(animal %in% c(323, 322, 326, 324), "control", "experimental"))
+	       ) -> df
+
 # count pellets per day
 df %>%
-	filter(date >= "2022-03-28" & date <= "2022-03-31") %>%
-	mutate(protocol = replace_na(protocol, "experimental")) %>%
 	group_by(animal, date, protocol) %>%
 	summarise(pellets_consumed = n()) %>%
 	ungroup() -> pellets_consumed
+
+# get baseline mean intake
+pellets_consumed %>%
+	filter(protocol == "baseline",
+	       date <= "2022-03-28",
+	       date >= "2022-03-26",
+	       ) %>%
+	group_by(animal) %>%
+	summarise(
+		  baseline_intake = mean(pellets_consumed),
+		  baseline_err = sd(pellets_consumed) / sqrt(n())
+	) -> baseline
+
+
+# get experimental phase intake
+pellets_consumed %>%
+	filter(protocol == "experimental" | protocol == "control",
+	       pellets_consumed > 10,
+	       date > "2022-03-28",
+	       date < "2022-04-06") -> experimental
+
+baseline %>%
+	left_join(experimental) -> merged_data
+
+merged_data %>%
+	ggplot(aes(date, pellets_consumed, color = protocol)) +
+	geom_line() +
+	geom_point() +
+	geom_line(inherit.aes = FALSE, aes(date, baseline_intake)) +
+	geom_line(inherit.aes = FALSE, aes(date, baseline_intake)) +
+	facet_wrap(~animal) +
+	xlab("Date") +
+	ylab("Pellets consumed per day") +
+	theme(text = element_text(size = 20)) +
+	theme_bw()
+ggsave("vsbaseline.png")
 
 #pellets_consumed %>%
 #	filter(date > "2022-03-23", date < "2022-03-28") %>%

@@ -23,7 +23,7 @@ data_raw %>%
 	       pellets = as.numeric(pellets),
 	       protocol = as.factor(protocol)
 	       ) %>%
-	filter(date >= "2022-03-21") -> df
+	filter(date >= "2022-01-01") -> df
 
 # fix pellets count every day
 # remove test pellets
