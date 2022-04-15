@@ -25,6 +25,20 @@ data_raw %>%
 	       ) %>%
 	filter(date >= "2022-01-01") -> df
 
+# set experimental condition
+df %>%
+	mutate(
+		protocol = if_else(
+				   date <= "2022-03-28",
+				   "baseline",
+				   if_else(
+					   animal %in% c(321, 322, 324, 327),
+					   "control",
+					   "experimental"
+					   )
+				   )
+		) -> df
+
 # fix pellets count every day
 # remove test pellets
 df %>%

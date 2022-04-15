@@ -1,14 +1,9 @@
 # Script
 pacman::p_load(tidyverse, cowplot, lme4, lmerTest, ggrepel)
 
-df <- readRDS("df.rds")
+source("load_data.R")
 
-# put labels
-df %>%
-	mutate(
-	       protocol = if_else(date <= "2022-03-28", "baseline",
-	       if_else(animal %in% c(323, 322, 326, 324), "control", "experimental"))
-	       ) -> df
+df <- readRDS("df.rds")
 
 # count pellets per day
 df %>%
@@ -20,7 +15,7 @@ df %>%
 pellets_consumed %>%
 	filter(protocol == "baseline",
 	       date <= "2022-03-28",
-	       date >= "2022-03-26",
+	       date >= "2022-03-24",
 	       ) %>%
 	group_by(animal) %>%
 	summarise(
@@ -31,14 +26,14 @@ pellets_consumed %>%
 
 # get experimental phase intake
 pellets_consumed %>%
-	filter(protocol == "experimental" | protocol == "control",
-	       pellets_consumed > 10,
-	       date > "2022-03-28",
-	       date < "2022-04-06") -> experimental
+	filter(protocol != "baseline",
+	       pellets_consumed > 10
+	       ) -> experimental
 
 baseline %>%
 	left_join(experimental) -> merged_data
 
+# intake per experimental group
 merged_data %>%
 	ggplot(aes(date, pellets_consumed, color = protocol)) +
 	geom_line() +
@@ -51,6 +46,43 @@ merged_data %>%
 	theme(text = element_text(size = 20)) +
 	theme_bw()
 ggsave("vsbaseline.png")
+
+# intake controlled by baseline intake
+prcnt_diff <- function(experimental, baseline) {
+	(experimental - baseline) / ((experimental + baseline) / 2)
+}
+merged_data %>%
+	mutate(
+	       percent_intake = prcnt_diff(pellets_consumed, baseline_intake) * 100
+	       ) -> baseline_control_intake
+
+# intake per experimental group controlled by baseline intake
+baseline_control_intake %>%
+	ggplot(aes(date, percent_intake, color = protocol)) +
+	geom_line() +
+	geom_point() +
+	geom_hline(yintercept = 0) +
+	facet_wrap(~animal) +
+	xlab("Date") +
+	ylab("Pellets consumed per day") +
+	theme(text = element_text(size = 20)) +
+	theme_bw()
+
+# delays
+df %>%
+	filter(protocol != "baseline") %>%
+	ggplot(aes(as.numeric(delay))) +
+	geom_histogram() +
+	theme_bw() +
+	facet_wrap(~protocol)
+
+df %>%
+	mutate(day = lubridate::day(date)) %>%
+	group_by(day, delay, protocol, animal) %>%
+	summarise(m = n()) %>%
+	ungroup() %>%
+	group_by(delay, protocol) %>%
+	summarise(mm = mean(m))
 
 #pellets_consumed %>%
 #	filter(date > "2022-03-23", date < "2022-03-28") %>%
@@ -193,7 +225,7 @@ df %>%
 	group_by(animal, date, day_night) %>%
 	summarise(pellets_consumed = n()) %>%
 	ungroup() %>%
-	group_by(animal) %>%
+	group_by(animal, protocol) %>%
 	mutate(pellets_consumed_scaled = scale(pellets_consumed)) %>%
 	ungroup() %>%
 	group_by(day_night) %>%
@@ -205,7 +237,7 @@ pellets_consumed_circadian %>%
 	ggplot(aes(
 		   day_night, mean_pellet_intake,
 		   ymin = mean_pellet_intake - err_pellet_intake,
-		   yax = mean_pellet_intake + err_pellet_intake,
+		   ymax = mean_pellet_intake + err_pellet_intake,
 		   fill = day_night
 		   )) +
 	geom_col(width = 0.5) +
