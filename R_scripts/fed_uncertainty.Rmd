@@ -185,8 +185,24 @@ experimental <- pellets_consumed %>%
 merged_data <- baseline %>% 
   left_join(experimental)
 ```
+# Compute intake in dark/light periods
 
-# [1] plot: intake per experimental group
+```{r}
+n_days_exp <- df %>% filter(protocol != "baseline")
+n_days_exp <- length(unique(n_days_exp$date))
+circadian_intake <- df %>% 
+  filter(protocol != "baseline") %>% 
+  mutate(
+    day_night = as.factor(
+      if_else(isolated_hour >= 12 && isolated_hour <= 23,
+              "Dark", "Light")
+    )
+  ) %>% 
+  group_by(animal, day_night, protocol) %>% 
+  summarise(pellets_consumed = n() / n_days_exp)
+```
+
+# [1.0] plot: intake per experimental group
 
 ```{r}
 merged_data %>% 
@@ -216,8 +232,53 @@ merged_data %>%
   theme(strip.background = element_rect(colour="black",
                                         fill="white"))
 ```
+# [1.1] plot: intake per experimental group means
 
-# [2] plot: weight percent difference from baseline
+```{r}
+# individual means
+animal_intake <- merged_data %>% 
+  group_by(animal, protocol) %>% 
+  summarise(mean_intake = mean(pellets_consumed)) %>% 
+  ungroup()
+# group means
+group_intake <- animal_intake %>% 
+  group_by(protocol) %>% 
+  summarise(
+    mean_group_intake = mean(mean_intake)
+    ) %>% 
+  mutate(
+    err = sd(mean_group_intake) / sqrt(n())
+  ) %>% 
+  ungroup() 
+#plot
+group_intake %>% 
+  ggplot(aes(
+    protocol,
+    mean_group_intake,
+    ymin = mean_group_intake - err,
+    ymax = mean_group_intake + err,
+    fill = protocol
+  )) + 
+  geom_col(width = 0.5) +
+  geom_errorbar(width = 0.3) +
+  geom_point(
+    inherit.aes = FALSE,
+    aes(protocol, mean_intake),
+    data = animal_intake
+  ) +
+  xlab("") +
+  ylab("Mean pellets consumed per day") +
+  theme(text = element_text(size = 20)) +
+  scale_fill_manual(values=c("#999999", "#E69F00")) +
+  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"),
+        legend.position = "none")
+```
+
+
+# [2.0] plot: weights per animal
 
 ```{r}
 merge_weight %>% 
@@ -238,15 +299,100 @@ merge_weight %>%
     ),
     color = "gray50"
   ) +
-  facet_wrap(~animal)
+  facet_wrap(~animal) +
+  xlab("Date") +
+  ylab("Weight") +
+  theme(text = element_text(size = 20)) +
+  scale_color_manual(values=c("#999999", "#E69F00")) +
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"))
 ```
 
-# test
+# [2.1] plot: weight per group
 
 ```{r}
-merge_weight %>% 
-  filter(date >= "2022-04-13") %>% 
+# individual means
+animal_weight <- merge_weight %>% 
+  group_by(animal, protocol) %>% 
+  summarise(mean_weight = mean(perc_diff)) %>% 
+  ungroup()
+# group means
+group_weight <- animal_weight %>% 
   group_by(protocol) %>% 
-  summarise(m = mean(perc_diff))
+  summarise(
+    mean_group_weight = mean(mean_weight)
+    ) %>% 
+  mutate(
+    err = sd(mean_group_weight) / sqrt(n())
+  ) %>% 
+  ungroup() 
+# plot
+group_weight %>% 
+  ggplot(aes(
+    protocol,
+    mean_group_weight,
+    ymin = mean_group_weight - err,
+    ymax = mean_group_weight + err,
+    fill = protocol
+  )) + 
+  geom_col(width = 0.5) +
+  geom_errorbar(width = 0.3) +
+  geom_point(
+    inherit.aes = FALSE,
+    aes(protocol, mean_weight),
+    data = animal_weight
+  ) +
+  xlab("") +
+  ylab("Mean percent change in weight") +
+  theme(text = element_text(size = 20)) +
+  scale_fill_manual(values=c("#999999", "#E69F00")) +
+  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"),
+        legend.position = "none")
 ```
 
+# [3.0] plot: intake in dark/light periods
+```{r}
+circadian_intake_group <- circadian_intake %>% 
+  group_by(protocol, day_night) %>% 
+  summarise(
+    mean_intake = mean(pellets_consumed)
+    ) %>% 
+  ungroup() %>% 
+  mutate(
+    err = sd(mean_intake) / sqrt(n())
+  )
+# plot
+circadian_intake_group %>% 
+  ggplot(aes(
+    day_night,
+    mean_intake,
+    ymin = mean_intake - err,
+    ymax = mean_intake + err,
+    fill = day_night
+  )) +
+  geom_col() +
+  geom_errorbar(width = 0.3) +
+  geom_point(
+    inherit.aes = FALSE,
+    aes(
+      day_night,
+      pellets_consumed
+    ),
+    data = circadian_intake
+  ) +
+  facet_wrap(~protocol) +
+  xlab("") +
+  ylab("Total pellets consumed") +
+  theme(text = element_text(size = 20)) +
+  scale_fill_manual(values=c("#999999", "#E69F00")) +
+  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"),
+        legend.position = "none")
+
+```
