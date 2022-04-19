@@ -13,7 +13,8 @@ pacman::p_load(
   cowplot,
   lme4,
   lmerTest,
-  ggrepel
+  ggrepel,
+  ggplot2
 )
 ```
 
@@ -111,8 +112,6 @@ weight_data <- weight_data %>%
 # remove test pellets
 # pellet counter reset every 24 hours
 df <- df %>%
-  filter(
-    isolated_hour < 8 | isolated_hour > 9) %>%
   group_by(animal, date) %>%
   mutate(pellets = seq(1, n(), 1))
 
@@ -191,7 +190,7 @@ merged_data <- baseline %>%
 
 ```{r}
 merged_data %>% 
-  filter(date >= "2022-03-30") +
+  filter(date >= "2022-03-30", date < "2022-04-18") %>%
   ggplot(aes(
     date,
     pellets_consumed,
