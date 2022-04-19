@@ -1,0 +1,253 @@
+---
+title: "FED_UNCERTAINTY"
+author: "Luis Luarte"
+date: "4/18/2022"
+output: html_document
+---
+
+# Load libs
+
+```{r}
+pacman::p_load(
+  tidyverse,
+  cowplot,
+  lme4,
+  lmerTest,
+  ggrepel
+)
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load data
+
+```{r, echo = FALSE}
+# intake
+csv_list <- list.files(
+  path = "../raw_data",
+  recursive = TRUE,
+  pattern = "\\.CSV$",
+  full.names = TRUE
+)
+data_raw <- csv_list %>%
+  set_names() %>%
+  map_dfr(
+    read_csv,
+    .id = "file_name"
+  ) %>%
+  filter(animal != 111) # test animal code
+
+# weight
+weight_path <- list.files(
+  path = "../raw_data/weights",
+  recursive = FALSE,
+  pattern = ".csv",
+  full.names = TRUE
+)
+weight_data <- weight_path %>% 
+  set_names() %>%
+  map_dfr(
+    read_csv,
+    .id = "file_name"
+  )
+weight_data <- weight_data %>% 
+  select(-file_name) %>% 
+  mutate(
+    date = lubridate::ymd(date)
+  ) %>%
+  gather(
+    .,
+    "animal",
+    "weight",
+    -date
+  )
+```
+
+# Data pre-proc
+
+```{r}
+df <- data_raw %>%
+  select(-numJamClears) %>% # useless col
+  mutate(
+    complete_date = as.POSIXct(time, origin = "1970-01-01"),
+    date = as.Date(as.POSIXct(time, origin = "1970-01-01")),
+    hour = hms::as_hms(lubridate::ymd_hms(complete_date)),
+    isolated_hour = lubridate::hour(complete_date),
+    animal = as.factor(animal),
+    pellets = as.numeric(pellets),
+    protocol = as.factor(protocol)
+  ) %>%
+  filter(date >= "2022-01-01")
+
+# set experimental condition
+df <- df %>%
+  mutate(
+    protocol = if_else(
+      date <= "2022-03-28",
+      "baseline",
+      if_else(
+        animal %in% c(321, 322, 324, 327),
+        "control",
+        "experimental"
+      )
+    )
+  )
+weight_data <- weight_data %>% 
+    mutate(
+    protocol = if_else(
+      date <= "2022-03-28",
+      "baseline",
+      if_else(
+        animal %in% c(321, 322, 324, 327),
+        "control",
+        "experimental"
+      )
+    )
+  )
+
+# remove test pellets
+# pellet counter reset every 24 hours
+df <- df %>%
+  filter(
+    isolated_hour < 8 | isolated_hour > 9) %>%
+  group_by(animal, date) %>%
+  mutate(pellets = seq(1, n(), 1))
+
+# save
+saveRDS(data_raw, "df_raw.rds")
+saveRDS(df, "df.rds")
+```
+
+# Start data analysis
+
+```{r}
+# load data
+df <- readRDS("df.rds")
+```
+
+# Count pellets consumed every day
+
+```{r}
+pellets_consumed <- df %>%
+  group_by(animal, date, protocol) %>%
+  summarise(pellets_consumed = n()) %>%
+  ungroup()
+```
+
+# Compute baseline intake
+
+```{r}
+baseline <- pellets_consumed %>%
+  filter(
+    protocol == "baseline",
+    date <= "2022-03-28",
+    date >= "2022-03-27"
+  ) %>% 
+  group_by(animal) %>% 
+  summarise(
+    baseline_intake = mean(pellets_consumed),
+    baseline_err = sd(pellets_consumed) / sqrt(n())
+  )
+```
+
+# Compute baseline weight
+
+```{r}
+weight_data_baseline <- weight_data %>%
+  filter(date == "2022-03-18") %>% 
+  group_by(protocol, animal) %>% 
+  summarise(baseline_weight = mean(weight)) %>%
+  ungroup() %>%
+  select(-protocol)
+
+merge_weight <- weight_data_baseline %>% 
+  left_join(weight_data, by = c("animal")) %>% 
+  filter(protocol != "baseline") %>%
+  mutate(
+    perc_diff = (weight - baseline_weight) / ((weight + baseline_weight) / 2) * 100
+  )
+```
+
+# Compute experimental period intake
+
+```{r}
+experimental <- pellets_consumed %>% 
+  filter(
+    protocol != "baseline"
+  )
+```
+
+# Merge experimental and baseline intake data
+
+```{r}
+merged_data <- baseline %>% 
+  left_join(experimental)
+```
+
+# [1] plot: intake per experimental group
+
+```{r}
+merged_data %>% 
+  filter(date >= "2022-03-30") +
+  ggplot(aes(
+    date,
+    pellets_consumed,
+    color = protocol
+  )) +
+  geom_line(color = "gray70") +
+  geom_point() +
+  geom_line(
+    inherit.aes = FALSE,
+    aes(
+      date,
+      baseline_intake
+    ),
+    color = "gray50"
+  ) +
+  facet_wrap(~animal) +
+  xlab("Date") +
+  ylab("Pellets consumed per day") +
+  theme(text = element_text(size = 20)) +
+  labs(color = "Control/Experimental") +
+  scale_color_manual(values=c("#999999", "#E69F00")) +
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"))
+```
+
+# [2] plot: weight percent difference from baseline
+
+```{r}
+merge_weight %>% 
+  ggplot(
+    aes(
+      date,
+      weight,
+      color = protocol
+    )
+  ) +
+  geom_line(color = "gray70") +
+  geom_point() +
+  geom_line(
+    inherit.aes = FALSE,
+    aes(
+      date,
+      baseline_weight
+    ),
+    color = "gray50"
+  ) +
+  facet_wrap(~animal)
+```
+
+# test
+
+```{r}
+merge_weight %>% 
+  filter(date >= "2022-04-13") %>% 
+  group_by(protocol) %>% 
+  summarise(m = mean(perc_diff))
+```
+
