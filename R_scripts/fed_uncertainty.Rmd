@@ -14,7 +14,8 @@ pacman::p_load(
   lme4,
   lmerTest,
   ggrepel,
-  ggplot2
+  ggplot2,
+  kableExtra
 )
 ```
 
@@ -70,54 +71,54 @@ weight_data <- weight_data %>%
 # Data pre-proc
 
 ```{r}
-df <- data_raw %>%
-  select(-numJamClears) %>% # useless col
-  mutate(
-    complete_date = as.POSIXct(time, origin = "1970-01-01"),
-    date = as.Date(as.POSIXct(time, origin = "1970-01-01")),
-    hour = hms::as_hms(lubridate::ymd_hms(complete_date)),
-    isolated_hour = lubridate::hour(complete_date),
-    animal = as.factor(animal),
-    pellets = as.numeric(pellets),
-    protocol = as.factor(protocol)
-  ) %>%
-  filter(date >= "2022-01-01")
-
-# set experimental condition
-df <- df %>%
-  mutate(
-    protocol = if_else(
-      date <= "2022-03-28",
-      "baseline",
-      if_else(
-        animal %in% c(321, 322, 324, 327),
-        "control",
-        "experimental"
-      )
-    )
-  )
-weight_data <- weight_data %>% 
-    mutate(
-    protocol = if_else(
-      date <= "2022-03-28",
-      "baseline",
-      if_else(
-        animal %in% c(321, 322, 324, 327),
-        "control",
-        "experimental"
-      )
-    )
-  )
-
-# remove test pellets
-# pellet counter reset every 24 hours
-df <- df %>%
-  group_by(animal, date) %>%
-  mutate(pellets = seq(1, n(), 1))
-
-# save
-saveRDS(data_raw, "df_raw.rds")
-saveRDS(df, "df.rds")
+# df <- data_raw %>%
+#   select(-numJamClears) %>% # useless col
+#   mutate(
+#     complete_date = as.POSIXct(time, origin = "1970-01-01"),
+#     date = as.Date(as.POSIXct(time, origin = "1970-01-01")),
+#     hour = hms::as_hms(lubridate::ymd_hms(complete_date)),
+#     isolated_hour = lubridate::hour(complete_date),
+#     animal = as.factor(animal),
+#     pellets = as.numeric(pellets),
+#     protocol = as.factor(protocol)
+#   ) %>%
+#   filter(date >= "2022-01-01")
+# 
+# # set experimental condition
+# df <- df %>%
+#   mutate(
+#     protocol = if_else(
+#       date <= "2022-03-28",
+#       "baseline",
+#       if_else(
+#         animal %in% c(321, 322, 324, 327),
+#         "control",
+#         "experimental"
+#       )
+#     )
+#   )
+# weight_data <- weight_data %>% 
+#     mutate(
+#     protocol = if_else(
+#       date <= "2022-03-28",
+#       "baseline",
+#       if_else(
+#         animal %in% c(321, 322, 324, 327),
+#         "control",
+#         "experimental"
+#       )
+#     )
+#   )
+# 
+# # remove test pellets
+# # pellet counter reset every 24 hours
+# df <- df %>%
+#   group_by(animal, date) %>%
+#   mutate(pellets = seq(1, n(), 1))
+# 
+# # save
+# saveRDS(data_raw, "df_raw.rds")
+# saveRDS(df, "df.rds")
 ```
 
 # Start data analysis
@@ -155,6 +156,19 @@ baseline <- pellets_consumed %>%
 # Compute baseline weight
 
 ```{r}
+# add protocol column
+weight_data <- weight_data %>%
+    mutate(
+    protocol = if_else(
+      date <= "2022-03-28",
+      "baseline",
+      if_else(
+        animal %in% c(321, 322, 324, 327),
+        "control",
+        "experimental"
+      )
+    )
+  )
 weight_data_baseline <- weight_data %>%
   filter(date == "2022-03-18") %>% 
   group_by(protocol, animal) %>% 
@@ -200,6 +214,18 @@ circadian_intake <- df %>%
   ) %>% 
   group_by(animal, day_night, protocol) %>% 
   summarise(pellets_consumed = n() / n_days_exp)
+
+circadian_intake_raw <- df %>% 
+  filter(protocol != "baseline") %>% 
+  mutate(
+    day_night = as.factor(
+      if_else(isolated_hour >= 12 && isolated_hour <= 23,
+              "Dark", "Light")
+    )
+  ) %>% 
+  group_by(animal, protocol, day_night, date, isolated_hour) %>%
+  summarise(pellets_consumed = n()) %>% 
+  ungroup()
 ```
 
 # [1.0] plot: intake per experimental group
@@ -225,6 +251,7 @@ merged_data %>%
   facet_wrap(~animal) +
   xlab("Date") +
   ylab("Pellets consumed per day") +
+  ylim(c(0, 100)) +
   theme(text = element_text(size = 20)) +
   labs(color = "Control/Experimental") +
   scale_color_manual(values=c("#999999", "#E69F00")) +
@@ -250,6 +277,37 @@ group_intake <- animal_intake %>%
     err = sd(mean_group_intake) / sqrt(n())
   ) %>% 
   ungroup() 
+
+# statistical test
+intake_mdl_data <- merged_data %>% 
+  mutate(
+    date = as.numeric(date) - min(as.numeric(date))
+  )
+mdl_intake <- lmer(pellets_consumed ~ protocol*date + (1 | animal),
+                   data = intake_mdl_data)
+summary(mdl_intake)
+intake_pred <- predict(mdl_intake, type = "response") %>%
+  as_tibble()
+
+plot_intake_mdl <- bind_cols(intake_mdl_data, intake_pred)
+
+plot_intake_mdl %>%
+  ggplot(aes(
+    date,
+    value,
+    color = protocol,
+    group = animal
+  )) +
+  geom_line() +
+  geom_point() +
+  xlab("Number of days from start") +
+  ylab("Mean pellets consumed per day") +
+  theme(text = element_text(size = 20)) +
+  scale_color_manual(values=c("#999999", "#E69F00")) +
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"))
+  
 #plot
 group_intake %>% 
   ggplot(aes(
@@ -326,7 +384,38 @@ group_weight <- animal_weight %>%
   mutate(
     err = sd(mean_group_weight) / sqrt(n())
   ) %>% 
-  ungroup() 
+  ungroup()
+
+# statistical test
+weight_mdl_data <- merge_weight %>% 
+  mutate(
+    date = as.numeric(date) - min(as.numeric(date))
+  )
+mdl_weight <- lmer(weight ~ protocol*date + (1 | animal),
+                   data = intake_mdl_weight)
+summary(mdl_weight)
+weight_pred <- predict(mdl_weight, type = "response") %>%
+  as_tibble()
+
+plot_weight_mdl <- bind_cols(weight_mdl_data, weight_pred)
+
+plot_weight_mdl %>%
+  ggplot(aes(
+    date,
+    value,
+    color = protocol,
+    group = animal
+  )) +
+  geom_line() +
+  geom_point() +
+  xlab("Number of days from start") +
+  ylab("Percent weight difference from baseline") +
+  theme(text = element_text(size = 20)) +
+  scale_color_manual(values=c("#999999", "#E69F00")) +
+  theme_bw() +
+  theme(strip.background = element_rect(colour="black",
+                                        fill="white"))
+
 # plot
 group_weight %>% 
   ggplot(aes(
@@ -365,6 +454,22 @@ circadian_intake_group <- circadian_intake %>%
   mutate(
     err = sd(mean_intake) / sqrt(n())
   )
+
+# statistical test
+mdl_circadian <- lmer(pellets_consumed ~ protocol*day_night + (1 | animal),
+                   data = circadian_intake)
+summary(mdl_circadian)
+
+circadian_pred <- predict(mdl_circadian, type = "response") %>%
+  as_tibble()
+
+plot_circadian_mdl <- bind_cols(circadian_intake, circadian_pred)
+emm_circadian <- emmeans::emmeans(mdl_circadian, pairwise ~ day_night * protocol, adjust = "fdr")$contrasts
+
+emm_circadian %>% 
+  kable() %>% 
+  kable_styling(full_width = FALSE)
+
 # plot
 circadian_intake_group %>% 
   ggplot(aes(

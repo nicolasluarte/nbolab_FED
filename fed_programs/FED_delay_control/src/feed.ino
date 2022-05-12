@@ -3,8 +3,10 @@ void feed() {
     displayFeed();
     for (int i = 0; i < 20 + random(0, 10); i++) {
       if (!pellet) {
-        myMotor->step(25, FORWARD, DOUBLE);
-        myMotor->step(50, BACKWARD, DOUBLE);
+        //myMotor->step(15, FORWARD, DOUBLE);
+        //myMotor->step(45, BACKWARD, DOUBLE);
+        myMotor->step(7, FORWARD, DOUBLE);
+        myMotor->step(14, BACKWARD, DOUBLE);
         delay(50);
         queryPI();
       }
@@ -22,7 +24,7 @@ void feed() {
 
 void clearJam(){
   if (!pellet){
-    for (int i = 0; i < 41 + random(0, 50); i++){
+    for (int i = 0; i < 25 + random(0, 50); i++){
       myMotor->step(i, FORWARD, DOUBLE);
       queryPI();
       if (pellet){
