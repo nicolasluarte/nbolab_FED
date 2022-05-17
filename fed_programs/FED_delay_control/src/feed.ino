@@ -3,7 +3,6 @@ void feed() {
   if (!pellet) {
     displayFeed();
     for (int i = 0; i < 20 + random(0, 10); i++) {
-      queryPI();
       if (!pellet) {
         //myMotor->step(15, FORWARD, DOUBLE);
         //myMotor->step(45, BACKWARD, DOUBLE);
@@ -17,7 +16,6 @@ void feed() {
   motorTurns++;
  if (!pellet){
    for (int i = 0; i < 10 + random(0, 10); i++) {
-      queryPI();
       if (!pellet) {
         //myMotor->step(15, FORWARD, DOUBLE);
         //myMotor->step(45, BACKWARD, DOUBLE);
