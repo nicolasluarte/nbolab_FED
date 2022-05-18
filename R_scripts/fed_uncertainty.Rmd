@@ -5,12 +5,15 @@ date: "4/18/2022"
 output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
 # Load libs
 
 ```{r}
 pacman::p_load(
   tidyverse,
-  cowplot,
   lme4,
   lmerTest,
   ggrepel,
@@ -19,485 +22,188 @@ pacman::p_load(
 )
 ```
 
+# Prepare FED data [pool I]
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r}
+# get all the csv paths
+csv_list <- list.files(
+  path = "../raw_data",
+  recursive = TRUE,
+  pattern = "[0-9]{3}.csv$",
+  full.names = TRUE
+)
+# make the same colnames as pool 2 format
+pool1 <- csv_list %>%
+  set_names() %>%
+  map_dfr(
+    read_csv,
+    .id = "file_name"
+  ) %>% 
+  mutate(
+    Mouse = recode(Mouse,
+		`0` = 265,
+		`1` = 234,
+		`2` = 235,
+		`3` = 236,
+		`4` = 243,
+		`5` = 244,
+		`6` = 245,
+		`7` = 246,
+		`8` = 263,
+		`9` = 264
+	       ),
+    experiment = "low_uncertainty",
+    time = lubridate::mdy_hms(`MM:DD:YYYY hh:mm:ss`),
+    animal = as.numeric(Mouse),
+    delay = as.character(Delay),
+    pellets = as.character(PelletCount),
+    experimental_group = if_else(
+      Mouse %in% c(234, 235, 236, 245, 265),
+      "uncertainty",
+      "control"
+      ),
+    experimental_phase = if_else(
+      time < "2021-09-07",
+      "baseline",
+      "experimental"
+    )
+  ) %>% 
+  group_by(
+    animal,
+    lubridate::day(time)
+  ) %>% 
+  mutate(
+    pellets = as.character(1:n())
+  ) %>% 
+  ungroup() %>% 
+  select(
+    -c("Mouse", "Delay", "MM:DD:YYYY hh:mm:ss",
+       "MotorTurns", "BatteryVoltage", "PelletCount")
+  )
 ```
 
-# Load data
+# Prepare FED data [pool II]
 
-```{r, echo = FALSE}
-# intake
+```{r}
+# get all the csv paths
 csv_list <- list.files(
   path = "../raw_data",
   recursive = TRUE,
   pattern = "\\.CSV$",
   full.names = TRUE
 )
+# read the csv files and exclude test files
 data_raw <- csv_list %>%
   set_names() %>%
   map_dfr(
     read_csv,
     .id = "file_name"
   ) %>%
-  filter(animal != 111) # test animal code
-
-# weight
-weight_path <- list.files(
-  path = "../raw_data/weights",
-  recursive = FALSE,
-  pattern = ".csv",
-  full.names = TRUE
-)
-weight_data <- weight_path %>% 
-  set_names() %>%
-  map_dfr(
-    read_csv,
-    .id = "file_name"
-  )
-weight_data <- weight_data %>% 
-  select(-file_name) %>% 
+  filter(animal != 111) %>% 
+  select(-numJamClears) # this col is no longer in use
+# set time into human readable form
+data_FED <- data_raw %>% 
   mutate(
-    date = lubridate::ymd(date)
-  ) %>%
-  gather(
-    .,
-    "animal",
-    "weight",
-    -date
-  )
-```
-
-# Data pre-proc
-
-```{r}
-# df <- data_raw %>%
-#   select(-numJamClears) %>% # useless col
-#   mutate(
-#     complete_date = as.POSIXct(time, origin = "1970-01-01"),
-#     date = as.Date(as.POSIXct(time, origin = "1970-01-01")),
-#     hour = hms::as_hms(lubridate::ymd_hms(complete_date)),
-#     isolated_hour = lubridate::hour(complete_date),
-#     animal = as.factor(animal),
-#     pellets = as.numeric(pellets),
-#     protocol = as.factor(protocol)
-#   ) %>%
-#   filter(date >= "2022-01-01")
-# 
-# # set experimental condition
-# df <- df %>%
-#   mutate(
-#     protocol = if_else(
-#       date <= "2022-03-28",
-#       "baseline",
-#       if_else(
-#         animal %in% c(321, 322, 324, 327),
-#         "control",
-#         "experimental"
-#       )
-#     )
-#   )
-# weight_data <- weight_data %>% 
-#     mutate(
-#     protocol = if_else(
-#       date <= "2022-03-28",
-#       "baseline",
-#       if_else(
-#         animal %in% c(321, 322, 324, 327),
-#         "control",
-#         "experimental"
-#       )
-#     )
-#   )
-# 
-# # remove test pellets
-# # pellet counter reset every 24 hours
-# df <- df %>%
-#   group_by(animal, date) %>%
-#   mutate(pellets = seq(1, n(), 1))
-# 
-# # save
-# saveRDS(data_raw, "df_raw.rds")
-# saveRDS(df, "df.rds")
-```
-
-# Start data analysis
-
-```{r}
-# load data
-df <- readRDS("df.rds")
-```
-
-# Count pellets consumed every day
-
-```{r}
-pellets_consumed <- df %>%
-  group_by(animal, date, protocol) %>%
-  summarise(pellets_consumed = n()) %>%
-  ungroup()
-```
-
-# Compute baseline intake
-
-```{r}
-baseline <- pellets_consumed %>%
-  filter(
-    protocol == "baseline",
-    date <= "2022-03-28",
-    date >= "2022-03-27"
+    time = as.POSIXct(time, origin = "1970-01-01")
   ) %>% 
-  group_by(animal) %>% 
-  summarise(
-    baseline_intake = mean(pellets_consumed),
-    baseline_err = sd(pellets_consumed) / sqrt(n())
-  )
-```
-
-# Compute baseline weight
-
-```{r}
-# add protocol column
-weight_data <- weight_data %>%
-    mutate(
-    protocol = if_else(
-      date <= "2022-03-28",
+  filter(lubridate::year(time) == "2022") %>% # filter out test data out of sync
+  mutate(
+    experiment = "high_uncertainty",
+    # add group and experimental phase tag
+    experimental_group = if_else(
+      animal %in% c(321, 322, 324, 327),
+      "control",
+      "uncertainty"
+    ),
+    experimental_phase = if_else(
+      time <= "2022-03-28",
       "baseline",
-      if_else(
-        animal %in% c(321, 322, 324, 327),
-        "control",
-        "experimental"
-      )
-    )
-  )
-weight_data_baseline <- weight_data %>%
-  filter(date == "2022-03-18") %>% 
-  group_by(protocol, animal) %>% 
-  summarise(baseline_weight = mean(weight)) %>%
-  ungroup() %>%
-  select(-protocol)
-
-merge_weight <- weight_data_baseline %>% 
-  left_join(weight_data, by = c("animal")) %>% 
-  filter(protocol != "baseline") %>%
-  mutate(
-    perc_diff = (weight - baseline_weight) / ((weight + baseline_weight) / 2) * 100
-  )
-```
-
-# Compute experimental period intake
-
-```{r}
-experimental <- pellets_consumed %>% 
-  filter(
-    protocol != "baseline"
-  )
-```
-
-# Merge experimental and baseline intake data
-
-```{r}
-merged_data <- baseline %>% 
-  left_join(experimental)
-```
-# Compute intake in dark/light periods
-
-```{r}
-n_days_exp <- df %>% filter(protocol != "baseline")
-n_days_exp <- length(unique(n_days_exp$date))
-circadian_intake <- df %>% 
-  filter(protocol != "baseline") %>% 
-  mutate(
-    day_night = as.factor(
-      if_else(isolated_hour >= 12 && isolated_hour <= 23,
-              "Dark", "Light")
+      "experimental"
     )
   ) %>% 
-  group_by(animal, day_night, protocol) %>% 
-  summarise(pellets_consumed = n() / n_days_exp)
-
-circadian_intake_raw <- df %>% 
-  filter(protocol != "baseline") %>% 
+  bind_rows(., pool1) %>% 
   mutate(
-    day_night = as.factor(
-      if_else(isolated_hour >= 12 && isolated_hour <= 23,
-              "Dark", "Light")
-    )
+    date = lubridate::ymd(paste(
+      lubridate::year(time),
+      lubridate::month(time),
+      lubridate::day(time),
+      sep = "-"
+    ))
   ) %>% 
-  group_by(animal, protocol, day_night, date, isolated_hour) %>%
-  summarise(pellets_consumed = n()) %>% 
-  ungroup()
-```
-
-# [1.0] plot: intake per experimental group
-
-```{r}
-merged_data %>% 
-  filter(date >= "2022-03-30", date < "2022-04-18") %>%
-  ggplot(aes(
-    date,
-    pellets_consumed,
-    color = protocol
-  )) +
-  geom_line(color = "gray70") +
-  geom_point() +
-  geom_line(
-    inherit.aes = FALSE,
-    aes(
-      date,
-      baseline_intake
-    ),
-    color = "gray50"
-  ) +
-  facet_wrap(~animal) +
-  xlab("Date") +
-  ylab("Pellets consumed per day") +
-  ylim(c(0, 100)) +
-  theme(text = element_text(size = 20)) +
-  labs(color = "Control/Experimental") +
-  scale_color_manual(values=c("#999999", "#E69F00")) +
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"))
-```
-# [1.1] plot: intake per experimental group means
-
-```{r}
-# individual means
-animal_intake <- merged_data %>% 
-  group_by(animal, protocol) %>% 
-  summarise(mean_intake = mean(pellets_consumed)) %>% 
-  ungroup()
-# group means
-group_intake <- animal_intake %>% 
-  group_by(protocol) %>% 
-  summarise(
-    mean_group_intake = mean(mean_intake)
-    ) %>% 
-  mutate(
-    err = sd(mean_group_intake) / sqrt(n())
+  # make so pellets start at 1 each day
+  group_by(
+    animal,
+    date
   ) %>% 
-  ungroup() 
-
-# statistical test
-intake_mdl_data <- merged_data %>% 
   mutate(
-    date = as.numeric(date) - min(as.numeric(date))
-  )
-mdl_intake <- lmer(pellets_consumed ~ protocol*date + (1 | animal),
-                   data = intake_mdl_data)
-summary(mdl_intake)
-intake_pred <- predict(mdl_intake, type = "response") %>%
-  as_tibble()
-
-plot_intake_mdl <- bind_cols(intake_mdl_data, intake_pred)
-
-plot_intake_mdl %>%
-  ggplot(aes(
-    date,
-    value,
-    color = protocol,
-    group = animal
-  )) +
-  geom_line() +
-  geom_point() +
-  xlab("Number of days from start") +
-  ylab("Mean pellets consumed per day") +
-  theme(text = element_text(size = 20)) +
-  scale_color_manual(values=c("#999999", "#E69F00")) +
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"))
-  
-#plot
-group_intake %>% 
-  ggplot(aes(
-    protocol,
-    mean_group_intake,
-    ymin = mean_group_intake - err,
-    ymax = mean_group_intake + err,
-    fill = protocol
-  )) + 
-  geom_col(width = 0.5) +
-  geom_errorbar(width = 0.3) +
-  geom_point(
-    inherit.aes = FALSE,
-    aes(protocol, mean_intake),
-    data = animal_intake
-  ) +
-  xlab("") +
-  ylab("Mean pellets consumed per day") +
-  theme(text = element_text(size = 20)) +
-  scale_fill_manual(values=c("#999999", "#E69F00")) +
-  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"),
-        legend.position = "none")
-```
-
-
-# [2.0] plot: weights per animal
-
-```{r}
-merge_weight %>% 
-  ggplot(
-    aes(
-      date,
-      weight,
-      color = protocol
-    )
-  ) +
-  geom_line(color = "gray70") +
-  geom_point() +
-  geom_line(
-    inherit.aes = FALSE,
-    aes(
-      date,
-      baseline_weight
-    ),
-    color = "gray50"
-  ) +
-  facet_wrap(~animal) +
-  xlab("Date") +
-  ylab("Weight") +
-  theme(text = element_text(size = 20)) +
-  scale_color_manual(values=c("#999999", "#E69F00")) +
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"))
-```
-
-# [2.1] plot: weight per group
-
-```{r}
-# individual means
-animal_weight <- merge_weight %>% 
-  group_by(animal, protocol) %>% 
-  summarise(mean_weight = mean(perc_diff)) %>% 
-  ungroup()
-# group means
-group_weight <- animal_weight %>% 
-  group_by(protocol) %>% 
-  summarise(
-    mean_group_weight = mean(mean_weight)
-    ) %>% 
-  mutate(
-    err = sd(mean_group_weight) / sqrt(n())
+    pellets = 1:n()
   ) %>% 
-  ungroup()
-
-# statistical test
-weight_mdl_data <- merge_weight %>% 
-  mutate(
-    date = as.numeric(date) - min(as.numeric(date))
-  )
-mdl_weight <- lmer(weight ~ protocol*date + (1 | animal),
-                   data = intake_mdl_weight)
-summary(mdl_weight)
-weight_pred <- predict(mdl_weight, type = "response") %>%
-  as_tibble()
-
-plot_weight_mdl <- bind_cols(weight_mdl_data, weight_pred)
-
-plot_weight_mdl %>%
-  ggplot(aes(
-    date,
-    value,
-    color = protocol,
-    group = animal
-  )) +
-  geom_line() +
-  geom_point() +
-  xlab("Number of days from start") +
-  ylab("Percent weight difference from baseline") +
-  theme(text = element_text(size = 20)) +
-  scale_color_manual(values=c("#999999", "#E69F00")) +
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"))
-
-# plot
-group_weight %>% 
-  ggplot(aes(
-    protocol,
-    mean_group_weight,
-    ymin = mean_group_weight - err,
-    ymax = mean_group_weight + err,
-    fill = protocol
-  )) + 
-  geom_col(width = 0.5) +
-  geom_errorbar(width = 0.3) +
-  geom_point(
-    inherit.aes = FALSE,
-    aes(protocol, mean_weight),
-    data = animal_weight
-  ) +
-  xlab("") +
-  ylab("Mean percent change in weight") +
-  theme(text = element_text(size = 20)) +
-  scale_fill_manual(values=c("#999999", "#E69F00")) +
-  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"),
-        legend.position = "none")
-```
-
-# [3.0] plot: intake in dark/light periods
-```{r}
-circadian_intake_group <- circadian_intake %>% 
-  group_by(protocol, day_night) %>% 
-  summarise(
-    mean_intake = mean(pellets_consumed)
-    ) %>% 
   ungroup() %>% 
-  mutate(
-    err = sd(mean_intake) / sqrt(n())
+  select(-c("protocol", "battery", "motorTurns"))
+```
+
+
+
+# [1.0] Pellet intake
+
+## [1.1] mean pellet intake
+
+```{r}
+# pellet intake
+pellet_intake <- data_FED %>% 
+  group_by(
+    experiment,
+    experimental_group,
+    experimental_phase,
+    animal,
+    date
+  ) %>% 
+  summarise(
+    intake = n()
+  ) %>% 
+  filter(intake > 20 & intake < 80) %>% # remove data log fail
+  ungroup() %>% 
+  group_by(
+    experiment,
+    experimental_group,
+    experimental_phase,
+    animal
+  ) %>% 
+  summarise(
+    intake_m = mean(intake)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    experiment,
+    experimental_group,
+    experimental_phase
+  ) %>% 
+  summarise(
+    intake_m_g = mean(intake_m),
+    err = sd(intake_m) / sqrt(n())
   )
 
-# statistical test
-mdl_circadian <- lmer(pellets_consumed ~ protocol*day_night + (1 | animal),
-                   data = circadian_intake)
-summary(mdl_circadian)
+# plots
 
-circadian_pred <- predict(mdl_circadian, type = "response") %>%
-  as_tibble()
-
-plot_circadian_mdl <- bind_cols(circadian_intake, circadian_pred)
-emm_circadian <- emmeans::emmeans(mdl_circadian, pairwise ~ day_night * protocol, adjust = "fdr")$contrasts
-
-emm_circadian %>% 
-  kable() %>% 
-  kable_styling(full_width = FALSE)
-
-# plot
-circadian_intake_group %>% 
+# pellet intake
+pellet_intake %>% 
   ggplot(aes(
-    day_night,
-    mean_intake,
-    ymin = mean_intake - err,
-    ymax = mean_intake + err,
-    fill = day_night
+    experimental_group,
+    intake_m_g,
+    ymin = intake_m_g - err,
+    ymax = intake_m_g + err,
+    fill = experiment
   )) +
-  geom_col() +
-  geom_errorbar(width = 0.3) +
-  geom_point(
-    inherit.aes = FALSE,
-    aes(
-      day_night,
-      pellets_consumed
-    ),
-    data = circadian_intake
-  ) +
-  facet_wrap(~protocol) +
-  xlab("") +
-  ylab("Total pellets consumed") +
-  theme(text = element_text(size = 20)) +
-  scale_fill_manual(values=c("#999999", "#E69F00")) +
-  scale_x_discrete(labels = c("control" = "Control", "experimental" = "Experimental")) + 
-  theme_bw() +
-  theme(strip.background = element_rect(colour="black",
-                                        fill="white"),
-        legend.position = "none")
+  geom_col(position = "dodge") +
+  geom_errorbar(position=position_dodge(.9), width = .2) +
+  facet_wrap(~experimental_phase)
+```
+# Prepare PR data
+
+```{r}
 
 ```
+
+
+
+

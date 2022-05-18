@@ -9,6 +9,7 @@ void feed() {
         myMotor->step(14, FORWARD, DOUBLE);
         delay(50);
         queryPI();
+	delay(200);
       }
     }
     myMotor->release();
@@ -20,6 +21,14 @@ void feed() {
   else{
     pelletJam = false;
   }
+
+delay(500);
+
+// avoid pellet jam
+  if (!pellet){
+	myMotor->step(50, BACKWARD, DOUBLE);
+  }
+
 }
 
 void clearJam(){
