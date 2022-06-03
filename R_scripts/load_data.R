@@ -163,7 +163,7 @@ saveRDS(weight_data, "../raw_data/weights/weights.rds")
 # lickometer data ----
 
 unc_lick <- load_experiment(
-  "/home/nicoluarte/repos/nbolab_FED/raw_data/metadata/metadata_lickometer_low_uncertainty.csv",
+  "/home/nicoluarte/repos/nbolab_FED/raw_data/metadata/metadata_lickometer_uncertainty.csv",
   "/home/nicoluarte/repos/FED_data/data/lickometer_data/"
 ) %>% 
   filter(ID != 246) %>% 

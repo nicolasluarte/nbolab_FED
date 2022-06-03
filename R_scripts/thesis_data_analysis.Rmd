@@ -1,0 +1,447 @@
+---
+title: "thesis_data_analysis"
+author: "Luis Luarte"
+date: '2022-06-03'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# load libs
+
+```{r}
+pacman::p_load(
+  tidyverse,
+  ggplot2,
+  rstudioapi
+)
+```
+
+# load data sets
+
+This data sets correspond to experiments where FED food delivery was random, and
+motivation was tested using a progressive ratio in lickometer
+
+```{r}
+# set working directory where this file is located
+cur_dir <- dirname(getSourceEditorContext()$path)
+setwd(cur_dir)
+
+# lickometer data for both pool with low and high uncertainty
+lickometer_uncertainty <- readRDS("../raw_data/lickometer_data.rds")
+
+# fed data for both pool with low and high uncertainty
+fed_high_uncertainty <- readRDS("../raw_data/high_uncertainty.rds")
+fed_low_uncertainty <- readRDS("../raw_data/low_uncertainty.rds")
+
+# merge both fed data sets
+fed_uncertainty <- bind_rows(
+  fed_high_uncertainty,
+  fed_low_uncertainty
+)
+
+# weight data
+weight_uncertainty <- readRDS("../raw_data/weights/weights.rds")
+```
+
+# data processing
+
+## intake
+
+```{r}
+# this data proc is to plot intake
+
+# first get intake over days per mouse
+intake_over_days <- fed_uncertainty %>% 
+  # add light/dark periods
+  mutate(
+    light_dark = case_when(
+      hour_of_day >= 11 & hour_of_day <= 23 ~ "dark",
+      TRUE ~ "light"
+    )
+  ) %>% 
+  group_by(
+    animal,
+    ymd,
+    experiment_id,
+    protocol
+  ) %>% 
+  summarise(
+    pellets_per_day = max(pellets)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    pellets_cumm = cumsum(pellets_per_day)
+  ) %>% 
+  filter(
+    protocol %in% c("experimental", "control")
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    session = as.numeric(as.factor(ymd))
+  ) %>% 
+  # max number of sessions for all pools
+  # 246 was euthanize
+  filter(session <= 35, animal != 246) %>% 
+  # group both controls together
+  mutate(
+    group = case_when(
+      protocol == "control" ~ "control",
+      protocol == "experimental" &
+        experiment_id == "high_uncertainty_fed" ~ "experimental_high_unc",
+      protocol == "experimental" &
+        experiment_id == "low_uncertainty_fed" ~ "experimental_low_unc"
+    )
+  )
+
+# cummulative intake over days summarized to present data based on
+# experimental protocol
+intake_over_days_group <- intake_over_days %>% 
+  group_by(
+    group,
+    session
+  ) %>% 
+  summarise(
+    pellets_cumm_group = mean(pellets_cumm),
+    err = sd(pellets_cumm) / sqrt(n())
+  )
+
+# mean intake per group
+intake_means <- intake_over_days %>% 
+  group_by(
+    group,
+    session,
+    animal
+  ) %>% 
+  summarise(
+    pellets_mean = mean(pellets_per_day)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    group,
+    session
+  ) %>% 
+  summarise(
+    pellets_mean_session = mean(pellets_mean)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    group
+  ) %>% 
+  summarise(
+    pellets_mean_group = mean(pellets_mean_session),
+    err = sd(pellets_mean_session) / sqrt(n())
+  )
+
+# intake with light dark periods
+intake_over_days_circ <- fed_uncertainty %>% 
+  # add light/dark periods
+  mutate(
+    light_dark = case_when(
+      hour_of_day >= 11 & hour_of_day <= 23 ~ "dark",
+      TRUE ~ "light"
+    )
+  ) %>% 
+  group_by(
+    animal,
+    ymd,
+    experiment_id,
+    protocol,
+    light_dark
+  ) %>% 
+  summarise(
+    pellets_per_day = max(pellets)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    pellets_cumm = cumsum(pellets_per_day)
+  ) %>% 
+  filter(
+    protocol %in% c("experimental", "control")
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    session = as.numeric(as.factor(ymd))
+  ) %>% 
+  # max number of sessions for all pools
+  # 246 was euthanize
+  filter(session <= 35, animal != 246) %>% 
+  # group both controls together
+  mutate(
+    group = case_when(
+      protocol == "control" ~ "control",
+      protocol == "experimental" &
+        experiment_id == "high_uncertainty_fed" ~ "experimental_high_unc",
+      protocol == "experimental" &
+        experiment_id == "low_uncertainty_fed" ~ "experimental_low_unc"
+    )
+  )
+```
+
+## weight 
+```{r}
+weight_uncertainty <- readRDS("../raw_data/weights/weights.rds")
+# create control and experimental groups
+weight_uncertainty <- weight_uncertainty %>% 
+  mutate(
+    group = case_when(
+      animal %in% c(320, 323, 325, 326) ~ "experimental_high_unc",
+      animal %in% c(234, 235, 236, 245, 265) ~ "experimental_low_unc",
+      TRUE ~ "control"
+    )
+  )
+
+# add groups
+# first we get them from fed_uncerainty data
+groups <- fed_uncertainty %>% 
+  select(
+    animal,
+    protocol,
+    ymd
+  ) %>% 
+  distinct(., ymd, .keep_all = TRUE)
+# add the group into weight data
+weight_uncertainty <- weight_uncertainty %>% 
+  left_join(groups, by = c("animal", "date" = "ymd")) %>% 
+  filter(protocol %in% c("experimental", "control"))
+
+# calculate percent difference between days
+weight_uncertainty <- weight_uncertainty %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    init_weight = weight[1],
+    delta_bw = ((weight - init_weight) / ((weight + init_weight) / 2)) * 100,
+    cumm_delta_bw = cumsum(delta_bw),
+    session = as.numeric(as.factor(date))
+  ) %>% 
+  # right number of weight sessions
+  filter(session <= 16)
+
+# get means per group per session
+weight_uncertainty_group <- weight_uncertainty %>% 
+  group_by(
+    session,
+    group
+  ) %>% 
+  summarise(
+    weight_mean = mean(delta_bw),
+    err = sd(weight) / sqrt(n())
+  )
+
+# get mean per group
+weight_uncertainty_group_ <- weight_uncertainty_group %>% 
+  group_by(
+    group
+  ) %>% 
+  summarise(
+    weight_mean_ = mean(weight_mean),
+    err_ = sd(weight_mean) / sqrt(n())
+  )
+
+# get number of pellets / delta bw
+# merge intake over days with weight data
+intake_weight <- intake_over_days %>% 
+  left_join(weight_uncertainty %>% 
+              select(animal, weight, date), by = c("animal", "ymd" = "date"))
+# impute missing data with a rolling average
+intake_weight_imputation <- intake_weight %>% 
+  group_by(
+    animal
+  ) %>% 
+  mutate(
+    rolling_weight = zoo::rollapply(weight, 5, mean, fill = 0, na.rm = TRUE)
+  ) %>% 
+  ungroup() %>% 
+  filter(rolling_weight != 0) %>% 
+  group_by(
+    animal,
+    session
+  ) %>% 
+  mutate(
+    pellets_per_gr = pellets_per_day / rolling_weight
+  ) 
+# calculate means per session
+intake_weight_session <- intake_weight_imputation %>% 
+  group_by(
+    session,
+    group
+  ) %>% 
+  summarise(
+    pellets_per_gr_mean = mean(pellets_per_gr),
+    err = sd(pellets_per_gr) / sqrt(n())
+  )
+# calculate means per group
+intake_weight_group <- intake_weight_session %>% 
+  group_by(
+    group
+  ) %>% 
+  summarise(
+    pellets_per_gr_mean_group = mean(pellets_per_gr_mean),
+    err = sd(pellets_per_gr_mean) / sqrt(n())
+  )
+
+# same idea but with light dark periods
+# get number of pellets / delta bw
+# merge intake over days with weight data
+intake_weight_circ <- intake_over_days_circ %>% 
+  left_join(weight_uncertainty %>% 
+              select(animal, weight, date), by = c("animal", "ymd" = "date"))
+# impute missing data with a rolling average, add from the previously calculated
+intake_weight_imputation_circ <- intake_weight_circ %>% 
+  select(-session) %>% 
+  left_join(intake_weight_imputation %>% 
+              select(
+                animal,
+                ymd,
+                rolling_weight
+              ), by = c("animal", "ymd")) %>% 
+  ungroup() %>% 
+  filter(rolling_weight != 0) %>% 
+  group_by(
+    animal,
+    session,
+    light_dark
+  ) %>% 
+  mutate(
+    pellets_per_gr = pellets_per_day / rolling_weight
+  ) 
+
+# calculate means per session
+intake_weight_session_circ <- intake_weight_imputation_circ %>% 
+  group_by(
+    session,
+    group,
+    light_dark
+  ) %>% 
+  summarise(
+    pellets_per_gr_mean = mean(pellets_per_gr),
+    err = sd(pellets_per_gr) / sqrt(n())
+  )
+# calculate means per group
+intake_weight_group_circ <- intake_weight_session_circ %>% 
+  group_by(
+    group,
+    light_dark
+  ) %>% 
+  summarise(
+    pellets_per_gr_mean_group = mean(pellets_per_gr_mean),
+    err = sd(pellets_per_gr_mean) / sqrt(n())
+  )
+```
+
+# plots
+
+## intake
+
+### cummulative intake over days
+```{r}
+# cummulative intake over days
+intake_over_days_group %>% 
+  ggplot(aes(
+    session,
+    pellets_cumm_group,
+    color = group,
+    ymin = pellets_cumm_group - err,
+    ymax = pellets_cumm_group + err
+  )) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(width = 0.3)
+```
+### mean intake per group
+```{r}
+intake_means %>% 
+  ggplot(aes(
+    group,
+    pellets_mean_group,
+    ymin = pellets_mean_group - err,
+    ymax = pellets_mean_group + err
+  )) +
+  geom_col() +
+  geom_errorbar(width = 0.3)
+```
+### pellet intake per bw per session
+```{r}
+intake_weight_session %>% 
+  ggplot(aes(
+    session,
+    pellets_per_gr_mean,
+    color = group,
+    ymin = pellets_per_gr_mean - err,
+    ymax = pellets_per_gr_mean + err
+  )) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(width = 0.3)
+```
+### pellet intake per bw per group
+```{r}
+intake_weight_group %>% 
+  ggplot(aes(
+    group,
+    pellets_per_gr_mean_group,
+    ymin = pellets_per_gr_mean_group - err,
+    ymax = pellets_per_gr_mean_group + err
+  )) +
+  geom_col() +
+  geom_errorbar(width = 0.3)
+```
+### pellet intake per bw per group light/dark
+```{r}
+intake_weight_group_circ %>% 
+  ggplot(aes(
+    group,
+    pellets_per_gr_mean_group,
+    ymin = pellets_per_gr_mean_group - err,
+    ymax = pellets_per_gr_mean_group + err,
+    fill = light_dark
+  )) +
+  geom_col(position = "dodge") +
+  geom_errorbar(width = 0.3, position = position_dodge(width = 0.9))
+```
+
+## weight
+
+### delta body weight per session
+```{r}
+weight_uncertainty_group %>% 
+  ggplot(aes(
+    session,
+    weight_mean,
+    ymin = weight_mean - err,
+    ymax = weight_mean + err,
+    color = group
+  )) +
+  geom_point() +
+  geom_line() + 
+  geom_errorbar()
+```
+### delta body weight per group
+```{r}
+weight_uncertainty_group_ %>% 
+  ggplot(aes(
+    group,
+    weight_mean_,
+    ymin = weight_mean_ - err_,
+    ymax = weight_mean_ + err_
+  )) +
+  geom_col() +
+  geom_errorbar(width = 0.3)
+```
+
