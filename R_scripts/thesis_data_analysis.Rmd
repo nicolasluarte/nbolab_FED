@@ -15,8 +15,13 @@ knitr::opts_chunk$set(echo = TRUE)
 pacman::p_load(
   tidyverse,
   ggplot2,
-  rstudioapi
+  rstudioapi,
+  devtools
 )
+
+# source lickometer library
+devtools::source_url("https://github.com/lab-cpl/lickometer-library/blob/main/src/lickometer_functions_compilate.R?raw=TRUE")
+
 ```
 
 # load data sets
@@ -190,6 +195,58 @@ intake_over_days_circ <- fed_uncertainty %>%
         experiment_id == "low_uncertainty_fed" ~ "experimental_low_unc"
     )
   )
+
+# inter-pellet recovery time
+inter_pellet_recovery <- fed_uncertainty %>% 
+  mutate(
+    session = as.numeric(as.factor(ymd))
+  ) %>% 
+  group_by(animal) %>% 
+  mutate(
+    inter_pellet_recovery = (hms - lag(hms)) - delay
+  ) %>% 
+  # na here are the first pellet which is set while leaving the FED inside the cage
+  drop_na() %>% 
+  ungroup() %>% 
+  # remove double pellets > 3% chance
+  # double pellets generate events that are faster than delay
+  filter(
+    inter_pellet_recovery > 0
+  )
+
+# now we want inter-pellet recovery estimate by animal and session
+inter_pellet_recovery_ind <- inter_pellet_recovery %>% 
+  group_by(
+    animal,
+    session,
+    protocol,
+    experiment_id
+  ) %>% 
+  summarise(
+    mean_recovery = mean(inter_pellet_recovery)
+  ) %>% 
+  # now session is collapsed to obtain an estimate per animal
+  ungroup() %>% 
+  group_by(
+    animal,
+    protocol,
+    experiment_id
+  ) %>% 
+  summarise(
+    mean_recovery_id = mean(mean_recovery)
+  )
+# inter-pellets recovery by group
+inter_pellet_recovery_group <- inter_pellet_recovery_ind %>% 
+  ungroup() %>% 
+  group_by(
+    protocol,
+    experiment_id
+  ) %>% 
+  summarise(
+    mean_recovery_group = mean(mean_recovery_id),
+    err = sd(mean_recovery_id) / sqrt(n())
+  )
+  
 ```
 
 ## weight 
@@ -344,6 +401,244 @@ intake_weight_group_circ <- intake_weight_session_circ %>%
     err = sd(pellets_per_gr_mean) / sqrt(n())
   )
 ```
+## lickometer
+
+### preference
+```{r}
+# add relevant labels: experimental group and protocol
+labels <- weight_uncertainty %>% 
+  select(animal, group, protocol, experiment_id) %>% 
+  distinct(., animal, .keep_all = TRUE) %>% 
+  rename(ID = animal)
+
+
+lickometer_data <- lickometer_uncertainty %>% 
+  left_join(
+    labels,
+    by = c("ID")
+  ) %>% 
+  # add session instead of dates
+  group_by(
+    group,
+    task_type
+  ) %>% 
+  mutate(
+    session = as.numeric(as.factor(fecha))
+  ) %>% 
+  ungroup()
+
+# preference for sucrose
+spout_pref <- lickometer_data %>% 
+  group_by(
+    ID,
+    group,
+    protocol,
+    tipo_recompensa,
+    session,
+    task_type,
+    fecha,
+    experiment_id
+  ) %>% 
+  summarise(
+    n_licks = n(),
+    n_events = max(evento)
+  )
+
+# preference for sucrose in FR
+spout_pref_fr <- spout_pref %>% 
+  filter(task_type == "fr") %>% 
+  group_by(
+    group,
+    protocol,
+    tipo_recompensa,
+    session,
+    fecha
+  ) %>% 
+  summarise(
+    mean_licks = mean(n_licks)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    group,
+    protocol,
+    fecha
+  ) %>% 
+  mutate(
+    total_licks = sum(mean_licks),
+    relative_licks = (mean_licks / total_licks) * 100
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    group,
+    protocol,
+    tipo_recompensa
+  ) %>% 
+  summarise(
+    mean_licks_group = mean(relative_licks), 
+    err = sd(relative_licks) / sqrt(n())
+  )
+```
+
+### PR structure
+```{r}
+pr_sessions <- spout_pref %>% 
+  filter(task_type == "pr") %>% 
+  group_by(
+    group,
+    protocol,
+    experiment_id
+  ) %>% 
+  mutate(
+    session = as.numeric(as.factor(fecha)),
+    valid_session = if_else(protocol == "control" & session > 5, 0, 1)
+  ) %>% 
+  # consider only sucrose licks and events
+  filter(valid_session == 1, tipo_recompensa == "sacarosa") %>% 
+  select(-valid_session) %>% 
+  # re compute standarized mean after merging both controls group together
+  mutate(
+    experiment_id = if_else(protocol == "control", "control", experiment_id)
+  ) %>% 
+  # z-score licks and events
+  group_by(
+    ID
+  ) %>% 
+  mutate(
+    n_licks_z = scale(n_licks),
+    n_events_z = scale(n_events)
+  ) %>% 
+  ungroup() %>% 
+  # obtain group estimates
+  group_by(
+    protocol,
+    group,
+    experiment_id,
+    session
+  ) %>% 
+  summarise(
+    mean_licks = mean(n_licks_z),
+    mean_events = mean(n_events_z),
+    err_licks = sd(n_licks_z) / sqrt(n()),
+    err_events = sd(n_events_z) / sqrt(n())
+  )
+
+# obtain timeout measure via peri-event interval
+peri_event_data <- lickometer_data %>% 
+  uncumulate()
+
+#saveRDS(peri_event_data %>%  synch_lick_event(., TRUE), "peri_event.rds")
+peri_event_data <- readRDS("peri_event.rds") %>% 
+  data.table::rbindlist(., fill = TRUE) %>% 
+  group_by(ID, n_sesion) %>% 
+  mutate(event_id = as.numeric(as.factor(event_id))) %>% 
+  ungroup()
+
+peri_event_data_pr <- peri_event_data %>% 
+  select(
+    experiment_id,
+    tiempo_peri_evento,
+    task_type,
+    protocol,
+    fecha,
+    ID
+  ) %>% 
+  filter(
+    task_type == "pr"
+  ) %>% 
+  # merge control groups together
+  mutate(
+    experiment_id = if_else(protocol == "control", "control", experiment_id)
+  ) 
+
+peri_event_data_pr_bin <- peri_event_data_pr %>% 
+  group_by(
+    ID,
+    fecha,
+    experiment_id
+  ) %>% 
+  # create 100 ms bins for peri-event time
+  mutate(
+    peri_breaks = cut(
+        tiempo_peri_evento,
+        breaks = seq(-5000, 5000, by = 500),
+        labels = FALSE,
+        include.lowest = TRUE)) %>% 
+  drop_na() %>% 
+  ungroup() %>% 
+  group_by(
+    ID,
+    fecha,
+    experiment_id,
+    peri_breaks
+  ) %>% 
+  summarise(
+    n_licks = n()
+  ) %>% 
+  ungroup() %>% 
+  # get group means
+  group_by(
+    experiment_id,
+    peri_breaks
+  ) %>% 
+  summarise(
+    mean_n_licks = mean(n_licks), 
+    err = sd(n_licks) / sqrt(n())
+  )
+
+# cum sum data
+peri_event_data_pr_bin_cum <- peri_event_data_pr_bin %>% 
+  group_by(
+    experiment_id
+  ) %>% 
+  mutate(
+    cum_licks = cumsum(mean_n_licks),
+    cum_err = cumsum(err)
+  )
+
+pr_bin_data <- lickometer_data %>% 
+  filter(task_type == "pr", tipo_recompensa == "sacarosa") %>% 
+  mutate(
+    session = as.numeric(as.factor(fecha)),
+    valid_session = if_else(protocol == "control" & session > 5, 0, 1)
+  ) %>% 
+  # consider only sucrose licks and events
+  filter(valid_session == 1, tipo_recompensa == "sacarosa") %>% 
+  select(-valid_session) %>% 
+  # re compute standarized mean after merging both controls group together
+  mutate(
+    experiment_id = if_else(protocol == "control", "control", experiment_id)
+  ) %>% 
+  bin_calculation(., 60, 5) %>% 
+  group_by(
+    ID,
+    session,
+    bins,
+    experiment_id
+  ) %>% 
+  summarise(
+    n_licks = n()
+  ) %>% 
+  # group level estimates
+  ungroup() %>% 
+  group_by(
+    session,
+    bins,
+    experiment_id
+  ) %>% 
+  summarise(
+    m_licks = mean(n_licks)
+  ) %>% 
+  ungroup() %>% 
+  group_by(
+    bins,
+    experiment_id
+  ) %>% 
+  summarise(
+    mean_licks = mean(m_licks),
+    err = sd(m_licks) / sqrt(n())
+  ) %>% 
+  drop_na()
+```
 
 # plots
 
@@ -443,5 +738,130 @@ weight_uncertainty_group_ %>%
   )) +
   geom_col() +
   geom_errorbar(width = 0.3)
+```
+## inter pellet recovery time
+```{r}
+inter_pellet_recovery_ind %>% 
+  ggplot(aes(
+    experiment_id,
+    mean_recovery_id,
+    group = protocol
+  )) +
+  geom_col(
+    inherit.aes = FALSE,
+    aes(
+      experiment_id,
+      mean_recovery_group,
+      fill = protocol
+    ),
+    data = inter_pellet_recovery_group,
+    position = "dodge"
+  ) +
+  geom_errorbar(
+    inherit.aes = FALSE,
+    aes(
+      experiment_id,
+      mean_recovery_group,
+      fill = protocol,
+      ymin = mean_recovery_group - err,
+      ymax = mean_recovery_group + err
+    ),
+    data = inter_pellet_recovery_group,
+    position = position_dodge(0.9),
+    width = 0.3
+  ) +
+  geom_point(position = position_dodge(0.9), color = "gray70")
+```
+
+## lickometer plots
+
+### preference for sucrose in fr
+```{r}
+spout_pref_fr %>% 
+  ggplot(aes(
+    group,
+    mean_licks_group,
+    ymin = mean_licks_group - err,
+    ymax = mean_licks_group + err,
+    fill = tipo_recompensa
+  )) +
+  geom_col(position = "dodge") +
+  geom_errorbar(position = position_dodge(0.9), width = 0.3)
+```
+### progressive ratio licks over sessions
+```{r}
+pr_sessions %>% 
+  ggplot(aes(
+    session,
+    mean_licks,
+    ymin = mean_licks - err_licks,
+    ymax = mean_licks + err_licks,
+    color = experiment_id
+  )) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(width = 0.3) +
+  facet_wrap(~group, scales = "free_x")
+```
+### progressive ratio events over sessions
+```{r}
+pr_sessions %>% 
+  ggplot(aes(
+    session,
+    mean_events,
+    ymin = mean_events - err_events,
+    ymax = mean_events + err_events,
+    color = experiment_id
+  )) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(width = 0.3) +
+  facet_wrap(~group, scales = "free_x")
+```
+### progressive ratio licks in T.O over sessions
+```{r}
+peri_event_data_pr_bin %>% 
+  ggplot(aes(
+    peri_breaks,
+    mean_n_licks,
+    color = experiment_id,
+    ymin = mean_n_licks - err,
+    ymax = mean_n_licks + err
+  )) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(fill = experiment_id)) +
+  geom_vline(xintercept = 10.5)
+```
+
+### progressive ratio licks in T.O over session cumulative
+```{r}
+peri_event_data_pr_bin_cum %>% 
+  ggplot(aes(
+    peri_breaks,
+    cum_licks,
+    color = experiment_id,
+    ymin = cum_licks - cum_err,
+    ymax = cum_licks + cum_err
+  )) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(fill = experiment_id)) +
+  geom_vline(xintercept = 10.5)
+```
+
+### licks over time bins
+```{r}
+pr_bin_data %>% 
+  ggplot(aes(
+    bins,
+    mean_licks,
+    ymin = mean_licks - err,
+    ymax = mean_licks + err,
+    color = experiment_id
+  )) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar()
 ```
 
