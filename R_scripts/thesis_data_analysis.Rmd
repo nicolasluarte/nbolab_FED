@@ -524,14 +524,37 @@ pr_sessions <- spout_pref %>%
 
 # obtain timeout measure via peri-event interval
 peri_event_data <- lickometer_data %>% 
+  select(
+    ID,
+    pool,
+    task_type,
+    group,
+    timestamp,
+    experiment_id,
+    protocol,
+    tipo_recompensa,
+    n_sesion,
+    sensor,
+    evento,
+    actividad,
+    fecha
+  ) %>% 
   uncumulate()
 
-#saveRDS(peri_event_data %>%  synch_lick_event(., TRUE), "peri_event.rds")
+saveRDS(peri_event_data %>%
+          filter(n_sesion == 7) %>%
+          synch_lick_event(., TRUE), "peri_event.rds")
+
 peri_event_data <- readRDS("peri_event.rds") %>% 
-  data.table::rbindlist(., fill = TRUE) %>% 
-  group_by(ID, n_sesion) %>% 
-  mutate(event_id = as.numeric(as.factor(event_id))) %>% 
-  ungroup()
+  # fix event id by animal, session, reward type
+  group_by(
+    ID,
+    fecha,
+    tipo_recompensa
+  ) %>% 
+  mutate(
+    event_id = cumsum(tiempo_peri_evento == 0)
+  )
 
 peri_event_data_pr <- peri_event_data %>% 
   select(
@@ -539,8 +562,11 @@ peri_event_data_pr <- peri_event_data %>%
     tiempo_peri_evento,
     task_type,
     protocol,
-    fecha,
-    ID
+    n_sesion,
+    ID,
+    event_id,
+    tipo_recompensa,
+    sensor
   ) %>% 
   filter(
     task_type == "pr"
@@ -548,19 +574,36 @@ peri_event_data_pr <- peri_event_data %>%
   # merge control groups together
   mutate(
     experiment_id = if_else(protocol == "control", "control", experiment_id)
-  ) 
+  )
+
+p1 <- peri_event_data_pr_bin_cum %>% 
+  ggplot(aes(
+    peri_breaks,
+    cum_licks,
+    color = experiment_id,
+    ymin = cum_licks - cum_err,
+    ymax = cum_licks + cum_err
+  )) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar() +
+  facet_wrap(~event_id) +
+  scale_x_discrete(limits=c("-5", "-4", "-3", "-2", "-1",
+                            "0", "1", "2", "3", "4", "5"))
 
 peri_event_data_pr_bin <- peri_event_data_pr %>% 
+  filter(tipo_recompensa == "sacarosa", event_id <= 10)%>% 
   group_by(
     ID,
-    fecha,
-    experiment_id
+    n_sesion,
+    experiment_id,
+    event_id
   ) %>% 
   # create 100 ms bins for peri-event time
   mutate(
     peri_breaks = cut(
         tiempo_peri_evento,
-        breaks = seq(-5000, 5000, by = 500),
+        breaks = seq(-5000, 5000, by = 1000),
         labels = FALSE,
         include.lowest = TRUE)) %>% 
   drop_na() %>% 
@@ -569,7 +612,8 @@ peri_event_data_pr_bin <- peri_event_data_pr %>%
     ID,
     fecha,
     experiment_id,
-    peri_breaks
+    peri_breaks,
+    event_id
   ) %>% 
   summarise(
     n_licks = n()
@@ -578,7 +622,8 @@ peri_event_data_pr_bin <- peri_event_data_pr %>%
   # get group means
   group_by(
     experiment_id,
-    peri_breaks
+    peri_breaks,
+    event_id
   ) %>% 
   summarise(
     mean_n_licks = mean(n_licks), 
@@ -588,7 +633,8 @@ peri_event_data_pr_bin <- peri_event_data_pr %>%
 # cum sum data
 peri_event_data_pr_bin_cum <- peri_event_data_pr_bin %>% 
   group_by(
-    experiment_id
+    experiment_id,
+    event_id
   ) %>% 
   mutate(
     cum_licks = cumsum(mean_n_licks),
