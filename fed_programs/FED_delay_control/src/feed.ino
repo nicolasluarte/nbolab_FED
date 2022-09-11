@@ -31,20 +31,21 @@
 //
 //}
 //
-//void clearJam(){
-//  if (!pellet){
-//    for (int i = 0; i < 41 + random(0, 50); i++){
-//      myMotor->step(i, FORWARD, DOUBLE);
-//      queryPI();
-//      if (pellet){
-//        break; // if pellet was delivered after clearJam exit loop
-//      }
-//    }
-//  }
-//  myMotor->release();
-//  numClears++;
-//  delay(500);
-//}
+
+void spin(){
+  if (!pellet){
+    for (int i = 0; i < 41 + random(0, 50); i++){
+      myMotor->step(i, FORWARD, DOUBLE);
+      queryPI();
+      if (pellet){
+        break; // if pellet was delivered after clearJam exit loop
+      }
+    }
+  }
+  myMotor->release();
+  numClears++;
+  delay(500);
+}
 
 
 void feed() {
@@ -64,8 +65,12 @@ void feed() {
   if (motorTurns > turnsBeforeClear){
     pelletJam = true;
   }
+  if (motorTurns > 5){
+    doSpin = true;
+  }
   else{
     pelletJam = false;
+    doSpin = false;
   }
 }
 

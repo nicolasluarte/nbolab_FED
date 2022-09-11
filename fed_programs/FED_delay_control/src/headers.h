@@ -89,6 +89,7 @@ bool blockDelivery;
 int delaySize;
 int arraySum = 0;
 bool pelletJam = false;
+bool doSpin = false;
 int turnsBeforeClear = 1;
 int numClears = 0;
 

@@ -64,6 +64,9 @@ void loop() {
     if (pelletJam){
       clearJam();
     }
+    if (doSpin){
+	    spin();
+    }
   }
   delay(1000);
 
