@@ -4,7 +4,9 @@ void sdSetup(){
     delay(1000);
   }
   else{
-    displaySDError();
-    delay(1000);
+	  while(true){
+	    displaySDError();
+	    delay(1000);
+	  }
   }
 }

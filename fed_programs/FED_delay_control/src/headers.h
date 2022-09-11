@@ -89,7 +89,7 @@ bool blockDelivery;
 int delaySize;
 int arraySum = 0;
 bool pelletJam = false;
-int turnsBeforeClear = 2;
+int turnsBeforeClear = 1;
 int numClears = 0;
 
 // timing variables
