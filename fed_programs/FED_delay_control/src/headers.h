@@ -55,7 +55,8 @@ char timeStampString[30];
 char FEDLog[30];
 bool pauseDelivery = false;
 // remove hours when FED is being maintained
-int HH[] = {1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0};
+// this variable is not in use
+// int HH[] = {1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0};
 int randomHoursSize = 6;
 int hourArray[6];
 
@@ -81,6 +82,8 @@ int fedDelay = 1;
 // feeding variables
 int idx = 0; // this is only a init value it gets randomized
 int feedingDelay;
+// if fed should deliver pellets or not
+bool feed = false;
 bool delayLogic;
 bool blockDisplay = false;
 int blockSize;
@@ -95,10 +98,13 @@ int numClears = 0;
 
 // timing variables
 int dayHours[] = {0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+// feed hours contain the lights-off period when the mice should be feed
+int feedHours[] = {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0};
 int sampleHours[6];
 bool shuffle = true; // should the array be shuffled?
 bool match;
 int lastShuffle;
+int lastHour;
 
 // battery variables
 #define VBATPIN A7

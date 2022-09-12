@@ -18,6 +18,7 @@ void loadConfiguration(const char *filename, Config &config) {
           doc["protocol"] | "default",  // <- source
           sizeof(config.protocol));         // <- destination's capacity
   config.longDelay = doc["longDelay"] | 15;
+  config.randomFeed = doc["randomFeed"] | 0;
   config.longDelayCounter = doc["longDelayCounter"] | 6; // number of 30~min random delays
   JsonArray deliveryArray = doc["deliveryDelay"].as<JsonArray>();
   

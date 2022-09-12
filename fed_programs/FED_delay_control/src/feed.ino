@@ -75,6 +75,9 @@ void feed() {
 }
 
 void clearJam(){
+// clear jam is now spinning in the reverse direction
+// to avoid jams
+// if fails 5 attempts to deliver pellet it makes a spin
   if (!pellet){
     for (int i = 0; i < 20 + random(0, 10); i++) {
       if (!pellet) {
