@@ -80,6 +80,20 @@ void displayDelay(int count) {
   display.refresh();
 }
 
+void displayRandomFeed(int result) {
+  display.clearDisplay();
+  display.setRotation(3);
+  display.setTextColor(BLACK);
+
+  display.setCursor(40, 50);
+  display.setTextSize(4);
+  char msg[30];
+  sprintf(msg,"Random feed: %02d", result);
+  display.println(msg);
+
+  display.refresh();
+}
+
 void displayJam() {
   display.clearDisplay();
   display.setRotation(3);
