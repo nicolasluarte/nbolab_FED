@@ -1,15 +1,5 @@
 module base(){
-import("/home/nicoluarte/nbolab_FED/STL/base.stl");
-}
-module uplift(){
-translate([-95, -32.5, -8])
-rotate([90, 0, 90])
-    difference(){
-cube([60.30, 9.65, 9.65]);
-translate([00,0,0])
-rotate([45,0,0])
-cube([60.30, 20, 9.65]);
-}
+import("/home/nicoluarte/repos/nbolab_FED/STL/base.stl");
 }
 
 module stop(){
@@ -29,7 +19,6 @@ difference(){
     base();
     opening();
     }
-uplift();
 stop();
  
 color("blue")

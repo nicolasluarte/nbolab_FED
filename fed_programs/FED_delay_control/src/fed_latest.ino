@@ -65,18 +65,16 @@ void loop() {
   if (!blockDisplay) {
     displayExperimentInfo();
   }
-  if (!blockDelivery) {
     checkForPellet();
     if (deliver){
 	    feed();
-    }
     if (pelletJam){
       clearJam();
     }
     if (doSpin){
 	    spin();
     }
-  }
+    }
   delay(1000);
 
   // when delivery is blocked display should update once

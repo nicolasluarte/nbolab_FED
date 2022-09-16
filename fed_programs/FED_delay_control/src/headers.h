@@ -88,7 +88,6 @@ bool delayLogic;
 bool blockDisplay = false;
 int blockSize;
 int blockMatch[24];
-bool blockDelivery;
 int delaySize;
 int arraySum = 0;
 bool pelletJam = false;
@@ -100,7 +99,7 @@ int numClears = 0;
 int blockCode;
 int dayHours[] = {0, 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
 // feed hours contain the lights-off period when the mice should be feed
-int feedHours[] = {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
+int feedHours[] = {12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 0, 1};
 // this array determines which hour and in which half feed is or is nor allowed
 int feedRandHours[12];
 int feedRandMins[12];
