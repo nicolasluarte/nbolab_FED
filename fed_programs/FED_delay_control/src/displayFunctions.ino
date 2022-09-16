@@ -8,7 +8,7 @@ void displayExperimentInfo() {
   char experimentalInfo[80];
   unsigned long epoch = rtc.getEpoch();
   sprintf(experimentalInfo,
-  "Animal: %02d\n\Cond: %s\nTime: %02d:%02d:%02d\nPellets: %02d\nBattery: %d\nDelays: %d,%d,%d,%d,%d,%d",
+  "Animal: %02d\n\Cond: %s\nTime: %02d:%02d:%02d\nPellets: %02d\nBattery: %d\nRandomFeed: %d",
   config.animal,
   config.protocol,
   hour(epoch),
@@ -16,13 +16,7 @@ void displayExperimentInfo() {
   second(epoch),
   pelletCount,
   batt,
-  // below are the times when a long delay is delivered
-  sampleHours[0],
-  sampleHours[1],
-  sampleHours[2],
-  sampleHours[3],
-  sampleHours[4],
-  sampleHours[5]
+  config.randomFeed
   );
   display.println(experimentalInfo);
 
@@ -80,16 +74,28 @@ void displayDelay(int count) {
   display.refresh();
 }
 
-void displayRandomFeed(int result) {
+void displayInt(int result) {
   display.clearDisplay();
   display.setRotation(3);
   display.setTextColor(BLACK);
 
   display.setCursor(40, 50);
   display.setTextSize(4);
-  char msg[30];
-  sprintf(msg,"Random feed: %02d", result);
+  char msg[50];
+  sprintf(msg,"%02d", result);
   display.println(msg);
+
+  display.refresh();
+}
+
+void displayDeliveryBlock() {
+  display.clearDisplay();
+  display.setRotation(3);
+  display.setTextColor(BLACK);
+
+  display.setCursor(40, 50);
+  display.setTextSize(4);
+  display.println("Delivery Block");
 
   display.refresh();
 }

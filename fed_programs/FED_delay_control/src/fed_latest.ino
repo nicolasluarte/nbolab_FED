@@ -10,6 +10,10 @@ struct Config {
   int longDelay;
   int longDelayCounter;
   int deliveryDelay[10];
+  // this variable is written in microSD
+  // if == 1, cointoss every hour in lights-off period
+  // to deliver pellet or not
+  int randomFeed;
 };
 
 // direction of the configuration file
@@ -38,6 +42,9 @@ void setup() {
   // Start the SD card and check if succesful
   sdSetup();
 
+  // initialize random feeding hours
+  randFeedHours();
+
   // Read configuration file
   Serial.println("Loading FED configuration file...");
   loadConfiguration(configurationFile, config);
@@ -60,7 +67,9 @@ void loop() {
   }
   if (!blockDelivery) {
     checkForPellet();
-    feed();
+    if (deliver){
+	    feed();
+    }
     if (pelletJam){
       clearJam();
     }
