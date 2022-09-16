@@ -15,7 +15,6 @@ if (config.randomFeed == 1){
   for (int i = 0; i < 12; i++){
   	if (feedHours[i] == hour(rtc.getEpoch()) && hour(rtc.getEpoch()) !=
 	lastHour){
-		randFeedHours();
 		if (feedRandHours[i] == 1){
 			// 0 first half hour
 			// 1 second half hour
@@ -31,23 +30,31 @@ if (config.randomFeed == 1){
 				deliver = true;
 				lastHour = hour(rtc.getEpoch());
 			}
+			// here calculation is blocked with a simple delay
+			else{
+				blockCode = 2;
+				// wait for next half hour
+				int currMin = minute(rtc.getEpoch());
+				int calcDelay = (30 - currMin) * 60000;
+				lastHour = hour(rtc.getEpoch());
+				displayInt(calcDelay/60000);
+				delay(calcDelay);
+				deliver = true;
+				}
 			}
-		// here calculation is blocked with a simple delay
+		// within feeding hours, but randomly choosen no to feed
 		else{
-			blockCode = 2;
-			// wait for next half hour
-			int currMin = minute(rtc.getEpoch());
-			int calcDelay = (30 - currMin) * 60000;
+			blockCode = 3;
+			deliver = false;
 			lastHour = hour(rtc.getEpoch());
-			displayInt(calcDelay/60000);
-			delay(calcDelay);
-			deliver = true;
-			}
+		}
 	}
 	}
 	// if not within feeding hour do not feed
    if (hour(rtc.getEpoch()) != lastHour){
-		blockCode = 3;
+	   // reselect random feeding hours and halves
+		randFeedHours();
+		blockCode = 4;
 		deliver = false;
 		lastHour = hour(rtc.getEpoch());
 		}

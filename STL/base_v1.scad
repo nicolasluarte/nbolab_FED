@@ -6,7 +6,7 @@ module stop(){
 translate([-78, -38, 51.7])
 rotate([0, 0, 90])
 color("blue")
-import("/home/nicoluarte/3dprints/wedge.stl");
+import("/home/nicoluarte/repos/3dprints/wedge.stl");
 }
 
 module opening(){
