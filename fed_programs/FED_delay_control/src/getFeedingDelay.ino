@@ -66,6 +66,11 @@ for (int i = 0; i < 12; i++){
 		// sets delay for control
 		int r = (int)random(0, delaySize);
 		fedDelay = config.deliveryDelay[r];
+		deliver = true;
+	}
+	else{
+		deliver = false;
+		blockCode = 5;
 	}
 }
 
