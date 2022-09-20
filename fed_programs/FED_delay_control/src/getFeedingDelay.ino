@@ -60,9 +60,14 @@ if (config.randomFeed == 1){
 		}
 }
 
-// set a delay every time is requested
-int r = (int)random(0, delaySize);
-fedDelay = config.deliveryDelay[r];
+
+for (int i = 0; i < 12; i++){
+	if (feedHours[i] == hour(rtc.getEpoch())){
+		// sets delay for control
+		int r = (int)random(0, delaySize);
+		fedDelay = config.deliveryDelay[r];
+	}
+}
 
 //  // choose random delay
 //  // check if fed should send long delay
