@@ -10,9 +10,7 @@ void checkForPellet() {
       for (int i = 0; i < fedDelay; i++) {
 	displayDelay(fedDelay - i);
 	delayLogic = false;
-	delay(500);
-	displayInt(blockCode);
-	delay(500);
+	delay(1000);
       }
     }
   }
