@@ -1,5 +1,7 @@
 void checkForPellet() {
   getFeedingDelay();
+//  displayInt(blockCode);
+//  delay(500);
   queryPI();
   if (pellet) {
     delay(500);

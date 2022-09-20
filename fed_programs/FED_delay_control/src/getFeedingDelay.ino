@@ -67,11 +67,12 @@ for (int i = 0; i < 12; i++){
 		int r = (int)random(0, delaySize);
 		fedDelay = config.deliveryDelay[r];
 		deliver = true;
+		break;
 	}
 	else{
-		deliver = false;
+	 	deliver = false;
 		blockCode = 5;
-	}
+		}
 }
 
 //  // choose random delay
