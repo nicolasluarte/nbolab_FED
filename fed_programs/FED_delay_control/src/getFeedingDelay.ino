@@ -34,15 +34,12 @@ if (config.randomFeed == 1){
 			else{
 				blockCode = 2;
 				// wait for next half hour
-				int currMin = minute(rtc.getEpoch());
-				int calcDelay = (30 - currMin) * 60000;
 				lastHour = hour(rtc.getEpoch());
-				displayInt(calcDelay/60000);
-				delay(calcDelay);
 				deliver = true;
 				}
 			}
 		// within feeding hours, but randomly choosen no to feed
+		// feedRandHours == 0
 		else{
 			blockCode = 3;
 			deliver = false;
@@ -60,19 +57,56 @@ if (config.randomFeed == 1){
 		}
 }
 
+if (config.randomFeed == 0){
+	for (int i = 0; i < 12; i++){
+		if (feedHours[i] == hour(rtc.getEpoch())){
+			deliver = true;
+			break;
+		}
+		else{
+			deliver = false;
+		}
+	}
+}
+
 
 for (int i = 0; i < 12; i++){
-	if (feedHours[i] == hour(rtc.getEpoch())){
-		// sets delay for control
-		int r = (int)random(0, delaySize);
-		fedDelay = config.deliveryDelay[r];
-		deliver = true;
-		break;
-	}
-	else{
-	 	deliver = false;
-		blockCode = 5;
+	if (feedHours[i] == hour(rtc.getEpoch()) && deliver == true){
+	// blockCode 1 should only feed within the first half hour
+		if (blockCode == 1){
+		// check if we are still within the first half hour
+			bool minBool = minute(rtc.getEpoch()) >= 30;
+			if (minBool == 0){
+				// sets delay
+				int r = (int)random(0, delaySize);
+				fedDelay = config.deliveryDelay[r];
+			}
+			// if we are in the second half hour feeding should
+			// be interrupted
+			else{
+				deliver = false;
+			}
 		}
+	// blockCode 2 should only feed within the second half hour
+		else if (blockCode == 2){
+			bool minBool = minute(rtc.getEpoch()) >= 30;
+			if (minBool == 1){
+				int r = (int)random(0, delaySize);
+				fedDelay = config.deliveryDelay[r];
+			}
+			else{
+				int currMin = minute(rtc.getEpoch());
+				int calcDelay = (30 - currMin) * 60;
+				fedDelay = calcDelay;
+			}
+		}
+	// blockCode 0 is for control and is the starting default
+		else if (blockCode == 0){
+		// sets delay for control feds
+			int r = (int)random(0, delaySize);
+			fedDelay = config.deliveryDelay[r];
+		}
+	}
 }
 
 //  // choose random delay
