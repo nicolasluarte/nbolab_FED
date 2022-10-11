@@ -57,6 +57,9 @@ void setup() {
   logfile = SD.open(FEDLog, FILE_WRITE);
 
   // read long delay info, stores variable values after reboot
+
+  // deliver 1 pellet to test functionallity
+  feed();
 }
 
 void loop() {
