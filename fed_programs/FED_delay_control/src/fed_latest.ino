@@ -43,6 +43,7 @@ void setup() {
   sdSetup();
 
   // initialize random feeding hours
+  randomSeed(analogRead(0));
   randFeedHours();
 
   // Read configuration file
@@ -60,6 +61,8 @@ void setup() {
 
   // deliver 1 pellet to test functionallity
   feed();
+  // shuffle feeding hours
+  randFeedHours();
 }
 
 void loop() {
