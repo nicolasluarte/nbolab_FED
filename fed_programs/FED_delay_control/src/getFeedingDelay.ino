@@ -69,6 +69,11 @@ if (config.randomFeed == 0){
 	}
 }
 
+// testing config, alway feed
+if (config.randomFeed == 3){
+	deliver = true;
+}
+
 
 for (int i = 0; i < 12; i++){
 	if (feedHours[i] == hour(rtc.getEpoch()) && deliver == true){
