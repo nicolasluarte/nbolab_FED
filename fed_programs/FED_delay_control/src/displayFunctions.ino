@@ -60,6 +60,18 @@ void displayFeed() {
   display.refresh();
 }
 
+void displayFeedCounter() {
+  display.clearDisplay();
+  display.setRotation(3);
+  display.setTextColor(BLACK);
+
+  display.setCursor(0, 10);
+  display.setTextSize(3);
+  display.println("counter-feed...");
+
+  display.refresh();
+}
+
 void displayDelay(int count) {
   display.clearDisplay();
   display.setRotation(3);

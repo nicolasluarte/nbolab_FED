@@ -73,13 +73,15 @@ void loop() {
   }
     checkForPellet();
     if (deliver){
-	    feed();
-    if (pelletJam){
-      clearJam();
-    }
-    if (doSpin){
-	    spin();
-    }
+    	if(pelletJam){
+		clearJam();
+		}
+	else if (doSpin){
+		spin();
+		}
+	else{
+		feed();
+		}
     }
   delay(1000);
 

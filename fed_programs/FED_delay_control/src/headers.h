@@ -75,7 +75,7 @@ bool pellet;
 bool dataLog = false;
 char data[60];
 int pelletCount;
-int motorTurns = 1;
+int motorTurns = 0;
 int battery = 1;
 int fedDelay = 1;
 
@@ -92,7 +92,7 @@ int delaySize;
 int arraySum = 0;
 bool pelletJam = false;
 bool doSpin = false;
-int turnsBeforeClear = 1;
+int turnsBeforeClear = 0;
 int numClears = 0;
 
 // timing variables
