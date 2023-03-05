@@ -1,5 +1,13 @@
 void queryPI(){
-  if (digitalRead(PELLET_WELL) == LOW) {
+	// attempt multiple sensor readings
+	for (int i = 0; i < 5; i++){
+		detector = digitalRead(PELLET_WELL);	
+		if (detector == LOW){
+			break;
+			}
+		delay(50);
+		}
+  if (detector == LOW) {
     pellet = true;
     // only write if data has not been logged
     if (!dataLog){

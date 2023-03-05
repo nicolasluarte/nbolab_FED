@@ -61,6 +61,7 @@ int randomHoursSize = 6;
 int hourArray[6];
 
 // PI variables
+bool detector;
 bool pellet;
 
 // pins
@@ -92,7 +93,7 @@ int delaySize;
 int arraySum = 0;
 bool pelletJam = false;
 bool doSpin = false;
-int turnsBeforeClear = 0;
+int turnsBeforeClear = 5;
 int numClears = 0;
 
 // timing variables
